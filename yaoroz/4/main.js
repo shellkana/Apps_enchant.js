@@ -80,8 +80,8 @@ window.onload = function() {
         hibana.y = -20 - 140 / 4;
         var frame = 0;
         hibana.on('enterframe', function() {
-            this.scaleX = Math.random() * (1 - Math.floor((core.frame % 6) / 2)) / 2;
-            this.scaleY = Math.floor(this.scaleX);
+            this.scaleX = (1 - Math.rondom() * 2) / 2;
+            this.scaleY = Math.abs(this.scaleX);
         });
         g.addChild(hibana);
         g.onenterframe = function() {
