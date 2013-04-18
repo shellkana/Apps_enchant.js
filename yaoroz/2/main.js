@@ -29,7 +29,7 @@ var RuleScene = Class.create(Scene, {
 window.onload = function() {
     var core = new Core();
     core.fps = 60;
-    core.preload("image/2_haikei.png", "image/2_ki.png");
+    core.preload("image/2_haikei.png", "image/2_ki.png", "image/2_kisen.png");
     core.onload = function() {
         core.rootScene.backgroundColor = "#eeeeee";
         var back = new Sprite(640, 960);
@@ -52,10 +52,16 @@ window.onload = function() {
         wood.originY = 0;
         wood.scale(270 / 540, 270 / 540);
         group.addChild(wood);
+        var kisen = new Sprite(111, 24);
+        kisen.image = core.assets["image/2_kisen.png"];
+        kisen.scale(1 / 2, 1 / 2);
+        kisen.x = -20;
+        group.addChild(kisen);
         var sen = new Sprite(50, 2);
-        sen.backgroundColor = "red";
+        //sen.backgroundColor = "red";
         sen.x = 10;
         sen.y = Math.random() * 250 + 10;
+        kisen.y = sen.y - 12;
         group.addChild(sen);
         core.rootScene.addChild(group);
         group.tl.moveTo(160 - 25, -320, 10).then(function() {
