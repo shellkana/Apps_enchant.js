@@ -1,5 +1,5 @@
 /*
- * stopwatch gama sample
+ *one tap gama sample
  */
 enchant();
 var LargeLabel = Class.create(Label, {
