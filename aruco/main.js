@@ -35,9 +35,6 @@ window.onload = function() {
          * primitive.gl.enchant.js内のクラスを使用している.
          * primitive.gl.enchant.js内定義されている基本図形はSprite3Dを継承している.
          */
-        var ita = new PlaneXY(8.5);
-        ita.z = -40;
-        scene.addChild(ita);
         var ball = new Sphere();
         /**
          * テクスチャを設定する.
@@ -90,15 +87,22 @@ window.onload = function() {
                 //drawId(markers);
             }
         });
+        var cvl = new SceneTexture();
         var root = new Sprite(480, 320);
+        root.backgroundColor = "red";
+        cvl.addChild(root);
         var surface = new Surface(480, 320);
         root.image = surface;
-        game.rootScene.addChild(root);
+        //game.rootScene.addChild(root);
         function snapshot() {
             surface.context.drawImage(video, 0, 0, 480, 320);
             imageData = surface.context.getImageData(0, 0, 480, 320);
         }
-
+        var ita = new PlaneXY(8.5);
+        ita.z = -40;
+        ita.mesh.texture.src = cvl._element;
+        scene.addChild(ita);
+        optimizeSprite3dForTextureScene(ita);
     };
     game.start();
 };
