@@ -82,7 +82,7 @@ window.onload = function() {
         game.rootScene.on('enterframe', function() {
             if (video.readyState === video.HAVE_ENOUGH_DATA) {
                 snapshot();
-                //var markers = detector.detect(imageData);
+                var markers = detector.detect(imageData);
                 //drawCorners(markers);
                 //drawId(markers);
             }
@@ -100,6 +100,7 @@ window.onload = function() {
         }
         var ita = new PlaneXY(8.5);
         ita.z = -40;
+        ita.scaleX=1.5;
         ita.mesh.texture.src = cvl._element;
         scene.addChild(ita);
         optimizeSprite3dForTextureScene(ita);
