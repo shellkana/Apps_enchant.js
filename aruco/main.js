@@ -1,6 +1,6 @@
 enchant();
 var game;
-var video, canvas, context, imageData, detector;
+var video, imageData, detector;
 window.onload = function() {
     game = new Game(480, 320);
     video = document.getElementById("video");
@@ -85,13 +85,13 @@ window.onload = function() {
         game.on('enterframe', function() {
             if (video.readyState === video.HAVE_ENOUGH_DATA) {
                 snapshot();
-                var markers = detector.detect(imageData);
+                //var markers = detector.detect(imageData);
                 //drawCorners(markers);
                 //drawId(markers);
             }
         });
-        var root = new Sprite(480,320);
-        var surface = new Surface(480,320);
+        var root = new Sprite(480, 320);
+        var surface = new Surface(480, 320);
         root.image = surface;
         game.rootScene.addChild(480, 320);
         function snapshot() {
