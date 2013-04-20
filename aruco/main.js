@@ -3,7 +3,7 @@ var game;
 var video, imageData, detector;
 window.onload = function() {
     game = new Game(480, 320);
-    game.preload("http://shell.6.ql.bz/droid.dae");
+    game.preload("droid.dae");
     var posit = new POS.Posit(15, 480);
     video = document.getElementById("video");
     navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia;
@@ -58,28 +58,7 @@ window.onload = function() {
         var cube = new Cube();
         cube.z = 0;
         cube.vz = -0.1;
-        cube.addChild(game.assets["http://shell.6.ql.bz/droid.dae"]);
-        cube.addEventListener('enterframe', function(e) {
-            /**
-             * オブジェクトを回転させる.
-             * rotateRollはオブジェクトのZ軸回転.
-             */
-            //this.rotateYaw(0.01);
-            //this.rotateRoll(0.01);
-            //this.z += cube.vz;
-            /**
-             * オブジェクト同士の当たり判定を計算する.
-             * 当たり判定は Sprite3D が持つ Bounding オブジェクト同士で行われる.
-             * Bounding オブジェクトを変えることで当たり判定の方法を変更することができる.
-             */
-            if (this.intersect(ball)) {
-                cube.vz = -cube.vz;
-                console.log('hit!');
-            }
-            if (this.z > 0) {
-                cube.vz = -cube.vz;
-            }
-        });
+        cube.addChild(game.assets["droid.dae"]);
         scene.addChild(cube);
         game.rootScene.on('enterframe', function() {
             if (video.readyState === video.HAVE_ENOUGH_DATA) {
