@@ -63,9 +63,9 @@ window.onload = function() {
              * オブジェクトを回転させる.
              * rotateRollはオブジェクトのZ軸回転.
              */
-            this.rotateYaw(0.01);
-            this.rotateRoll(0.01);
-            this.z += cube.vz;
+            //this.rotateYaw(0.01);
+            //this.rotateRoll(0.01);
+            //this.z += cube.vz;
             /**
              * オブジェクト同士の当たり判定を計算する.
              * 当たり判定は Sprite3D が持つ Bounding オブジェクト同士で行われる.
@@ -110,7 +110,11 @@ window.onload = function() {
                     corner.y = (320 / 2) - corner.y;
                 }
                 var pose = posit.pose(corners);
+                
                 console.log(pose);
+                cube.x = pose.bestTranslation[0];
+                cube.y = pose.bestTranslation[1];
+                cube.z = -pose.bestTranslation[2];
             }
         }
 
