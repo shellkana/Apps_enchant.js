@@ -82,7 +82,7 @@ window.onload = function() {
             }
         });
         scene.addChild(cube);
-        game.on('enterframe', function() {
+        game.rootScene.on('enterframe', function() {
             if (video.readyState === video.HAVE_ENOUGH_DATA) {
                 snapshot();
                 //var markers = detector.detect(imageData);
