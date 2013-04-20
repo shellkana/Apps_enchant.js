@@ -110,11 +110,12 @@ window.onload = function() {
                     corner.y = (320 / 2) - corner.y;
                 }
                 var pose = posit.pose(corners);
-                
+
                 console.log(pose);
-                cube.x = pose.bestTranslation[0]/100;
-                cube.y = pose.bestTranslation[1]/100;
-                cube.z = -pose.bestTranslation[2]/100;
+                cube.x = pose.bestTranslation[0] / 10;
+                cube.y = pose.bestTranslation[1] / 10;
+                cube.z = -pose.bestTranslation[2] / 10;
+                cube.rotation = [pose.bestRotation[0][0], pose.bestRotation[0][1], pose.bestRotation[0][2], 0, pose.bestRotation[1][0], pose.bestRotation[1][1], pose.bestRotation[1][2], 0, pose.bestRotation[2][0], pose.bestRotation[2][1], pose.bestRotation[1][2], 0, 0, 0, 0, 1];
             }
         }
 
