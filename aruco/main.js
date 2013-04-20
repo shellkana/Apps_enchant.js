@@ -112,9 +112,9 @@ window.onload = function() {
                 var pose = posit.pose(corners);
                 
                 console.log(pose);
-                cube.x = pose.bestTranslation[0];
-                cube.y = pose.bestTranslation[1];
-                cube.z = -pose.bestTranslation[2];
+                cube.x = pose.bestTranslation[0]/100;
+                cube.y = pose.bestTranslation[1]/100;
+                cube.z = -pose.bestTranslation[2]/100;
             }
         }
 
