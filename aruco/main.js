@@ -93,7 +93,7 @@ window.onload = function() {
         var root = new Sprite(480, 320);
         var surface = new Surface(480, 320);
         root.image = surface;
-        game.rootScene.addChild(480, 320);
+        game.rootScene.addChild(root);
         function snapshot() {
             surface.context.drawImage(video, 0, 0, 480, 320);
             imageData = context.getImageData(0, 0, 480, 320);
