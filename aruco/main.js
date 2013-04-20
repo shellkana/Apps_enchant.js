@@ -106,8 +106,8 @@ window.onload = function() {
                 var corners = markers[0].corners;
                 for (var i = 0; i < corners.length; ++i) {
                     var corner = corners[i];
-                    corner.x = corner.x - (canvas.width / 2);
-                    corner.y = (canvas.height / 2) - corner.y;
+                    corner.x = corner.x - (480 / 2);
+                    corner.y = (320 / 2) - corner.y;
                 }
                 var pose = posit.pose(corners);
                 console.log(pose);
