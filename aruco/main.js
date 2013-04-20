@@ -1,7 +1,28 @@
 enchant();
 var game;
+var video, canvas, context, imageData, detector;
 window.onload = function() {
     game = new Game(480, 320);
+    video = document.getElementById("video");
+    navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia;
+    if (navigator.getUserMedia) {
+        navigator.getUserMedia({
+            video : true
+        }, successCallback, errorCallback);
+
+        function successCallback(stream) {
+            if (window.webkitURL) {
+                video.src = window.webkitURL.createObjectURL(stream);
+            } else {
+                video.src = stream;
+            }
+        }
+
+        function errorCallback(error) {
+        }
+
+        detector = new AR.Detector();
+    }
     game.preload('enchant-sphere.png');
     game.onload = function() {
         /**
@@ -61,6 +82,23 @@ window.onload = function() {
             }
         });
         scene.addChild(cube);
+        game.on('enterframe', function() {
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                snapshot();
+                var markers = detector.detect(imageData);
+                //drawCorners(markers);
+                //drawId(markers);
+            }
+        });
+        var root = new Sprite(480,320);
+        var surface = new Surface(480,320);
+        root.image = surface;
+        game.rootScene.addChild(480, 320);
+        function snapshot() {
+            surface.context.drawImage(video, 0, 0, 480, 320);
+            imageData = context.getImageData(0, 0, 480, 320);
+        }
+
     };
     game.start();
 };
