@@ -3,6 +3,7 @@ var game;
 var video, imageData, detector;
 window.onload = function() {
     game = new Game(480, 320);
+    var posit = new POS.Posit(15, 480);
     video = document.getElementById("video");
     navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia;
     if (navigator.getUserMedia) {
@@ -101,6 +102,16 @@ window.onload = function() {
             var markers = detector.detect(imageData);
             drawCorners(markers);
             drawId(markers);
+            if (markers.length > 0) {
+                var corners = markers[0].corners;
+                for (var i = 0; i < corners.length; ++i) {
+                    var corner = corners[i];
+                    corner.x = corner.x - (canvas.width / 2);
+                    corner.y = (canvas.height / 2) - corner.y;
+                }
+                var pose = posit.pose(corners);
+                console.log(pose);
+            }
         }
 
         function drawCorners(markers) {
