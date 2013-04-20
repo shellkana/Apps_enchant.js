@@ -96,7 +96,7 @@ window.onload = function() {
         game.rootScene.addChild(root);
         function snapshot() {
             surface.context.drawImage(video, 0, 0, 480, 320);
-            imageData = context.getImageData(0, 0, 480, 320);
+            imageData = surface.context.getImageData(0, 0, 480, 320);
         }
 
     };
