@@ -3,7 +3,7 @@ var game;
 var video, imageData, detector;
 window.onload = function() {
     game = new Game(480, 320);
-    game.preload("droid.dae");
+    game.preload("http://shell.6.ql.bz/droid.dae");
     var posit = new POS.Posit(15, 480);
     video = document.getElementById("video");
     navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia;
@@ -58,7 +58,7 @@ window.onload = function() {
         var cube = new Cube();
         cube.z = 0;
         cube.vz = -0.1;
-        cube.addChild(game.assets["droid.dae"]);
+        cube.addChild(game.assets["http://shell.6.ql.bz/droid.dae"]);
         cube.addEventListener('enterframe', function(e) {
             /**
              * オブジェクトを回転させる.
