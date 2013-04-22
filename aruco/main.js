@@ -3,7 +3,7 @@ var game;
 var video, imageData, detector;
 window.onload = function() {
     game = new Game(480, 320);
-    game.preload("droid.dae");
+    //    game.preload("droid.dae");
     var posit = new POS.Posit(15, 480);
     video = document.getElementById("video");
     navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia;
@@ -58,12 +58,12 @@ window.onload = function() {
         var cube = new Cube();
         cube.z = 0;
         cube.vz = -0.1;
-        cube.addChild(game.assets["droid.dae"]);
+        //cube.addChild(game.assets["droid.dae"]);
         scene.addChild(cube);
         game.rootScene.on('enterframe', function() {
             if (video.readyState === video.HAVE_ENOUGH_DATA) {
                 snapshot();
-                var markers = detector.detect(imageData);
+                //var markers = detector.detect(imageData);
                 //drawCorners(markers);
                 //drawId(markers);
             }
@@ -90,10 +90,12 @@ window.onload = function() {
                     corner.y = (320 / 2) - corner.y;
                 }
                 var pose = posit.pose(corners);
-                cube.x = pose.bestTranslation[0] / 10;
-                cube.y = pose.bestTranslation[1] / 10;
+                cube.x = pose.bestTranslation[0] / 17;
+                cube.y = pose.bestTranslation[1] / 17;
                 cube.z = -pose.bestTranslation[2] / 10;
-                cube.rotation = [pose.bestRotation[0][0], pose.bestRotation[1][0], pose.bestRotation[2][0], 0, pose.bestRotation[0][1], pose.bestRotation[1][1], pose.bestRotation[2][1], 0, pose.bestRotation[0][2], pose.bestRotation[1][2], pose.bestRotation[2][2], 0, 0, 0, 0, 1];
+                var b = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1];
+                var mat = [pose.bestRotation[0][0], pose.bestRotation[1][0], pose.bestRotation[2][0], 0, pose.bestRotation[0][1], pose.bestRotation[1][1], pose.bestRotation[2][1], 0, pose.bestRotation[0][2], pose.bestRotation[1][2], pose.bestRotation[2][2], 0, 0, 0, 0, 1];
+                cube.rotation = mat4.multiply(mat4.multiply(b, mat, mat4.create()), b);
             }
         }
 
