@@ -4,7 +4,7 @@ var video, imageData, detector;
 window.onload = function() {
     game = new Game(480, 320);
     //    game.preload("droid.dae");
-    var posit = new POS.Posit(15, 480);
+    var posit = new POS.Posit(20, 480);
     video = document.getElementById("video");
     navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia;
     if (navigator.getUserMedia) {
@@ -32,6 +32,8 @@ window.onload = function() {
          * Sprite3DはScene3Dに追加することで画面に表示される.
          */
         var scene = new Scene3D();
+        scene.getCamera().z = 0;
+        scene.getCamera().centerZ = -1;
         /**
          * 球体型のオブジェクトをつくる.
          * primitive.gl.enchant.js内のクラスを使用している.
@@ -92,7 +94,7 @@ window.onload = function() {
                 var pose = posit.pose(corners);
                 cube.x = pose.bestTranslation[0] / 17;
                 cube.y = pose.bestTranslation[1] / 17;
-                cube.z = -pose.bestTranslation[2] / 10;
+                cube.z = -pose.bestTranslation[2] / 9;
                 var b = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1];
                 var mat = [pose.bestRotation[0][0], pose.bestRotation[1][0], pose.bestRotation[2][0], 0, pose.bestRotation[0][1], pose.bestRotation[1][1], pose.bestRotation[2][1], 0, pose.bestRotation[0][2], pose.bestRotation[1][2], pose.bestRotation[2][2], 0, 0, 0, 0, 1];
                 cube.rotation = mat4.multiply(mat4.multiply(b, mat, mat4.create()), b);
@@ -149,7 +151,7 @@ window.onload = function() {
         }
 
         var ita = new PlaneXY(8.5);
-        ita.z = -40;
+        ita.z = -49;
         ita.scaleX = 1.5;
         ita.mesh.texture.src = cvl._element;
         scene.addChild(ita);
