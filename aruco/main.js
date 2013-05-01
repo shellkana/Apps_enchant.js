@@ -3,7 +3,9 @@ var game;
 var video, imageData, detector;
 window.onload = function() {
     game = new Game(480, 320);
-    //    game.preload("droid.dae");
+    game.preload({
+        "droid.dae" : "http://shell.6.ql.bz/aruco/droid.dae"
+    });
     var posit = new POS.Posit(20, 480);
     video = document.getElementById("video");
     navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia;
@@ -55,12 +57,13 @@ window.onload = function() {
              */
             this.rotateYaw(0.01);
         });
-        scene.addChild(ball);
+        //scene.addChild(ball);
 
-        var cube = new Cube();
+        var cube = new PlaneXY();
         cube.z = 0;
         cube.vz = -0.1;
-        //cube.addChild(game.assets["droid.dae"]);
+        game.assets["droid.dae"].rotatePitch(Math.PI / 2);
+        cube.addChild(game.assets["droid.dae"]);
         scene.addChild(cube);
         game.rootScene.on('enterframe', function() {
             if (video.readyState === video.HAVE_ENOUGH_DATA) {

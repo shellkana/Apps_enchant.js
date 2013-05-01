@@ -1,7 +1,7 @@
 /**
- * enchant.js v0.6.3
+ * enchant.js v0.7.0
  * http://enchantjs.com
- * 
+ *
  * Copyright Ubiquitous Entertainment Inc.
  * Released under the MIT license.
  */
@@ -100,11 +100,10 @@ window.requestAnimationFrame =
         var lastTime = window.getTime();
         var frame = 1000 / 60;
         return function(func) {
-            var currentTime = window.getTime();
             var _id = setTimeout(function() {
-                func(window.getTime());
-            }, Math.max(0, lastTime + frame - currentTime));
-            lastTime = currentTime;
+                lastTime = window.getTime();
+                func(lastTime);
+            }, Math.max(0, lastTime + frame - window.getTime()));
             return _id;
         };
     }());
@@ -491,8 +490,21 @@ enchant.Event = enchant.Class.create({
 enchant.Event.LOAD = 'load';
 
 /**
+ * Events which are occurring when error is occured.
+ * Issued object: {@link enchant.Core}, {@link enchant.Surface}, {@link enchant.WebAudioSound}, {@link enchant.DOMSound}
+ */
+enchant.Event.ERROR = 'error';
+
+/**
+ * Events which are occurring when display size is changed.
+ * Issued object: {@link enchant.Core}, {@link enchant.Scene}
+ @type {String}
+ */
+enchant.Event.CORE_RESIZE = 'coreresize';
+
+/**
  * Events which are occurring during core loading.
- * Dispatched each time preloaded image is loaded. Issued object: {@link enchant.Core}
+ * Dispatched each time preloaded image is loaded. Issued object: {@link enchant.LoadingScene}
  * @type {String}
  */
 enchant.Event.PROGRESS = 'progress';
@@ -859,28 +871,21 @@ enchant.EventTarget = enchant.Class.create({
             }
             core = enchant.Core.instance = this;
 
-            /**
-             * The width of the core screen.
-             * @type {Number}
-             */
-            this.width = width || 320;
-            /**
-             * The height of the core screen.
-             * @type {Number}
-             */
-            this.height = height || 320;
-            /**
-             * The scaling of the core rendering.
-             * @type {Number}
-             */
-            this.scale = 1;
+            this._calledTime = 0;
+            this._mousedownID = 0;
+            this._surfaceID = 0;
+            this._soundID = 0;
+
+            this._scenes = [];
+
+            width = width || 320;
+            height = height || 320;
 
             var stage = document.getElementById('enchant-stage');
+            var scale, sWidth, sHeight;
             if (!stage) {
                 stage = document.createElement('div');
                 stage.id = 'enchant-stage';
-//                stage.style.width = window.innerWidth + 'px';
-//                stage.style.height = window.innerHeight + 'px';
                 stage.style.position = 'absolute';
 
                 if (document.body.firstChild) {
@@ -888,24 +893,23 @@ enchant.EventTarget = enchant.Class.create({
                 } else {
                     document.body.appendChild(stage);
                 }
-                this.scale = Math.min(
-                    window.innerWidth / this.width,
-                    window.innerHeight / this.height
+                scale = Math.min(
+                    window.innerWidth / width,
+                    window.innerHeight / height
                 );
                 this._pageX = 0;
                 this._pageY = 0;
             } else {
                 var style = window.getComputedStyle(stage);
-                width = parseInt(style.width, 10);
-                height = parseInt(style.height, 10);
-                if (width && height) {
-                    this.scale = Math.min(
-                        width / this.width,
-                        height / this.height
+                sWidth = parseInt(style.width, 10);
+                sHeight = parseInt(style.height, 10);
+                if (sWidth && sHeight) {
+                    scale = Math.min(
+                        sWidth / width,
+                        sHeight / height
                     );
                 } else {
-                    stage.style.width = this.width + 'px';
-                    stage.style.height = this.height + 'px';
+                    scale = 1;
                 }
                 while (stage.firstChild) {
                     stage.removeChild(stage.firstChild);
@@ -916,12 +920,15 @@ enchant.EventTarget = enchant.Class.create({
                 this._pageX = Math.round(window.scrollX || window.pageXOffset + bounding.left);
                 this._pageY = Math.round(window.scrollY || window.pageYOffset + bounding.top);
             }
-            if (!this.scale) {
-                this.scale = 1;
-            }
             stage.style.fontSize = '12px';
             stage.style.webkitTextSizeAdjust = 'none';
             this._element = stage;
+
+            this.addEventListener('coreresize', this._oncoreresize);
+
+            this._width = width;
+            this._height = height;
+            this.scale = scale;
 
             /**
              * The frame rate of the core.
@@ -950,8 +957,8 @@ enchant.EventTarget = enchant.Class.create({
             this.assets = {};
             var assets = this._assets = [];
             (function detectAssets(module) {
-                if (module.assets instanceof Array) {
-                    [].push.apply(assets, module.assets);
+                if (module.assets) {
+                    enchant.Core.instance.preload(module.assets);
                 }
                 for (var prop in module) {
                     if (module.hasOwnProperty(prop)) {
@@ -962,7 +969,6 @@ enchant.EventTarget = enchant.Class.create({
                 }
             }(enchant));
 
-            this._scenes = [];
             /**
              * The Scene which is currently displayed. This Scene is on top of Scene stack.
              * @type {enchant.Scene}
@@ -978,39 +984,7 @@ enchant.EventTarget = enchant.Class.create({
              * The Scene which is getting displayed during loading.
              * @type {enchant.Scene}
              */
-            this.loadingScene = new enchant.Scene();
-            this.loadingScene.backgroundColor = '#000';
-            var barWidth = this.width * 0.4 | 0;
-            var barHeight = this.width * 0.05 | 0;
-            var border = barWidth * 0.03 | 0;
-            var bar = new enchant.Sprite(barWidth, barHeight);
-
-            bar.x = (this.width - barWidth) / 2;
-            bar.y = (this.height - barHeight) / 2;
-            var image = new enchant.Surface(barWidth, barHeight);
-            image.context.fillStyle = '#fff';
-            image.context.fillRect(0, 0, barWidth, barHeight);
-            image.context.fillStyle = '#000';
-            image.context.fillRect(border, border, barWidth - border * 2, barHeight - border * 2);
-            bar.image = image;
-            var progress = 0, _progress = 0;
-            this.addEventListener('progress', function(e) {
-                // avoid #167 https://github.com/wise9/enchant.js/issues/177
-                progress = e.loaded / e.total * 1.0;
-            });
-            bar.addEventListener('enterframe', function() {
-                _progress *= 0.9;
-                _progress += progress * 0.1;
-                image.context.fillStyle = '#fff';
-                image.context.fillRect(border, 0, (barWidth - border * 2) * _progress, barHeight);
-            });
-            this.loadingScene.addChild(bar);
-
-            this._calledTime = 0;
-
-            this._mousedownID = 0;
-            this._surfaceID = 0;
-            this._soundID = 0;
+            this.loadingScene = new enchant.LoadingScene();
 
             /**
              * @type {Boolean}
@@ -1200,6 +1174,61 @@ enchant.EventTarget = enchant.Class.create({
             }
         },
         /**
+         * The width of the core screen.
+         * @type {Number}
+         */
+        width: {
+            get: function() {
+                return this._width;
+            },
+            set: function(w) {
+                this._width = w;
+                this._dispatchCoreResizeEvent();
+            }
+        },
+        /**
+         * The height of the core screen.
+         * @type {Number}
+         */
+        height: {
+            get: function() {
+                return this._height;
+            },
+            set: function(h) {
+                this._height = h;
+                this._dispatchCoreResizeEvent();
+            }
+        },
+        /**
+         * The scaling of the core rendering.
+         * @type {Number}
+         */
+        scale: {
+            get: function() {
+                return this._scale;
+            },
+            set: function(s) {
+                this._scale = s;
+                this._dispatchCoreResizeEvent();
+            }
+        },
+        _dispatchCoreResizeEvent: function() {
+            var e = new enchant.Event('coreresize');
+            e.width = this._width;
+            e.height = this._height;
+            e.scale = this._scale;
+            this.dispatchEvent(e);
+        },
+        _oncoreresize: function(e) {
+            this._element.style.width = Math.floor(this._width * this._scale) + 'px';
+            this._element.style.height = Math.floor(this._height * this._scale) + 'px';
+            var scene;
+            for (var i = 0, l = this._scenes.length; i < l; i++) {
+                scene = this._scenes[i];
+                scene.dispatchEvent(e);
+            }
+        },
+        /**
          * Performs a file preload.
          *
          * Sets files which are to be preloaded. When {@link enchant.Core#start} is called the
@@ -1222,52 +1251,87 @@ enchant.EventTarget = enchant.Class.create({
          *   core.start();
          *
          * @param {...String} assets Path of images to be preloaded. Multiple settings possible.
+         * @return {enchant.Core} this
          */
         preload: function(assets) {
+            var a;
             if (!(assets instanceof Array)) {
-                assets = Array.prototype.slice.call(arguments);
+                if (typeof assets === 'object') {
+                    a = [];
+                    for (var name in assets) {
+                        if (assets.hasOwnProperty(name)) {
+                            a.push([ assets[name], name ]);
+                        }
+                    }
+                    assets = a;
+                } else {
+                    assets = Array.prototype.slice.call(arguments);
+                }
             }
-            [].push.apply(this._assets, assets);
+            Array.prototype.push.apply(this._assets, assets);
+            return this;
         },
         /**
          * Loads a file.
          *
          * @param {String} asset File path of the resource to be loaded.
+         * @param {String} asset name of the resource to be loaded.
          * @param {Function} [callback] Function called up when file loading is finished.
+         * @param {Function} [callback] Function called up when file loading is failed.
          */
-        load: function(src, callback) {
-            if (callback == null) {
-                callback = function() {
-                };
+        load: function(src, alias, callback, onerror) {
+            var assetName, offset;
+            if (typeof arguments[1] === 'string') {
+                assetName = alias;
+                offset = 1;
+            } else {
+                assetName = src;
+                offset = 0;
             }
+            callback = arguments[1 + offset] || function() {};
+            onerror = arguments[2 + offset] || function() {};
 
             var ext = enchant.Core.findExt(src);
 
-            if (enchant.Core._loadFuncs[ext]) {
-                enchant.Core._loadFuncs[ext].call(this, src, callback, ext);
-            }
-            else {
-                var req = new XMLHttpRequest();
-                req.open('GET', src, true);
-                req.onreadystatechange = function(e) {
-                    if (req.readyState === 4) {
-                        if (req.status !== 200 && req.status !== 0) {
-                            throw new Error(req.status + ': ' + 'Cannot load an asset: ' + src);
-                        }
-
-                        var type = req.getResponseHeader('Content-Type') || '';
-                        if (type.match(/^image/)) {
-                            core.assets[src] = enchant.Surface.load(src, callback);
-                        } else if (type.match(/^audio/)) {
-                            core.assets[src] = enchant.Sound.load(src, type, callback);
-                        } else {
-                            core.assets[src] = req.responseText;
-                            callback();
-                        }
-                    }
+            return enchant.Deferred.next(function() {
+                var d = new enchant.Deferred();
+                var _callback = function(e) {
+                    d.call(e);
+                    callback.call(this, e);
                 };
-                req.send(null);
-            }
+                var _onerror = function(e) {
+                    d.fail(e);
+                    onerror.call(this, e);
+                };
+                if (enchant.Core._loadFuncs[ext]) {
+                    enchant.Core.instance.assets[assetName] = enchant.Core._loadFuncs[ext](src, ext, _callback, _onerror);
+                } else {
+                    var req = new XMLHttpRequest();
+                    req.open('GET', src, true);
+                    req.onreadystatechange = function() {
+                        if (req.readyState === 4) {
+                            if (req.status !== 200 && req.status !== 0) {
+                                // throw new Error(req.status + ': ' + 'Cannot load an asset: ' + src);
+                                var e = new enchant.Event('error');
+                                e.message = req.status + ': ' + 'Cannot load an asset: ' + src;
+                                _onerror.call(enchant.Core.instance, e);
+                            }
+
+                            var type = req.getResponseHeader('Content-Type') || '';
+                            if (type.match(/^image/)) {
+                                core.assets[assetName] = enchant.Surface.load(src, _callback, _onerror);
+                            } else if (type.match(/^audio/)) {
+                                core.assets[assetName] = enchant.Sound.load(src, type, _callback, _onerror);
+                            } else {
+                                core.assets[assetName] = req.responseText;
+                                _callback.call(enchant.Core.instance, new enchant.Event('laod'));
+                            }
+                        }
+                    };
+                    req.send(null);
+                }
+                return d;
+            });
         },
         /**
          * Start the core.
@@ -1275,8 +1339,9 @@ enchant.EventTarget = enchant.Class.create({
          * Obeying the frame rate set in {@link enchant.Core#fps}, the frame in
          * {@link enchant.Core#currentScene} will be updated. If images to preload are present,
          * loading will begin and the loading screen will be displayed.
+         * @return {enchant.Deferred} Deferred
          */
-        start: function() {
+        start: function(deferred) {
             var onloadTimeSetter = function() {
                 this.frame = 0;
                 this.removeEventListener('load', onloadTimeSetter);
@@ -1286,13 +1351,13 @@ enchant.EventTarget = enchant.Class.create({
             this.currentTime = window.getTime();
             this.running = true;
             this.ready = true;
-            this._requestNextFrame(0);
 
             if (!this._activated) {
                 this._activated = true;
                 if (enchant.ENV.SOUND_ENABLED_ON_MOBILE_SAFARI && !core._touched &&
                     (navigator.userAgent.indexOf('iPhone OS') !== -1 ||
                     navigator.userAgent.indexOf('iPad') !== -1)) {
+                    var d = new enchant.Deferred();
                     var scene = new enchant.Scene();
                     scene.backgroundColor = '#000';
                     var size = Math.round(core.width / 10);
@@ -1304,51 +1369,74 @@ enchant.EventTarget = enchant.Class.create({
                     var width = sprite.image.context.measureText('Touch to Start').width;
                     sprite.image.context.fillText('Touch to Start', (core.width - width) / 2, size - 1);
                     scene.addChild(sprite);
-                    document.addEventListener('touchstart', function() {
+                    document.addEventListener('mousedown', function waitTouch() {
+                        document.removeEventListener('mousedown', waitTouch);
                         core._touched = true;
                         core.removeScene(scene);
-                        core.start();
-                    }, true);
+                        core.start(d);
+                    }, false);
                     core.pushScene(scene);
-                    return;
+                    return d;
                 }
             }
-            if (this._assets.length) {
 
-                var o = {};
-                var assets = this._assets.filter(function(asset) {
-                    return asset in o ? false : o[asset] = true;
+            this._requestNextFrame(0);
+
+            var ret = this._requestPreload()
+                .next(function() {
+                    enchant.Core.instance.loadingScene.dispatchEvent(new enchant.Event(enchant.Event.LOAD));
                 });
-                var loaded = 0,
-                    len = assets.length,
-                    loadFunc = function() {
-                        var e = new enchant.Event('progress');
-                        e.loaded = ++loaded;
-                        e.total = len;
-                        core.dispatchEvent(e);
-                        if (loaded === len) {
-                            core.removeScene(core.loadingScene);
-                            core.dispatchEvent(new enchant.Event('load'));
-                        }
-                    };
 
-                this.pushScene(this.loadingScene);
-                for (var i = 0; i < len; i++) {
-                    this.load(assets[i], loadFunc);
-                }
-            } else {
-                this.dispatchEvent(new enchant.Event('load'));
+            if (deferred) {
+                ret.next(function(arg) {
+                    deferred.call(arg);
+                })
+                .error(function(arg) {
+                    deferred.fail(arg);
+                });
             }
+
+            return ret;
+        },
+        _requestPreload: function() {
+            var o = {};
+            var loaded = 0,
+                len = 0,
+                loadFunc = function() {
+                    var e = new enchant.Event('progress');
+                    e.loaded = ++loaded;
+                    e.total = len;
+                    core.loadingScene.dispatchEvent(e);
+                };
+            this._assets
+                .reverse()
+                .forEach(function(asset) {
+                    var src, name;
+                    if (asset instanceof Array) {
+                        src = asset[0];
+                        name = asset[1];
+                    } else {
+                        src = name = asset;
+                    }
+                    if (!o[name]) {
+                        o[name] = this.load(src, name, loadFunc);
+                        len++;
+                    }
+                }, this);
+
+            this.pushScene(this.loadingScene);
+            return enchant.Deferred.parallel(o);
         },
         /**
          * Begin core debug mode.
          *
          * Core debug mode can be set to on even if enchant.Core.instance._debug
          * flag is already set to true.
+         * @return {enchant.Deferred} Deferred
          */
         debug: function() {
             this._debug = true;
-            this.start();
+            return this.start();
         },
         actualFps: {
             get: function() {
@@ -1362,11 +1450,16 @@ enchant.EventTarget = enchant.Class.create({
             if (!this.ready) {
                 return;
             }
-            setTimeout(function() {
-                var core = enchant.Core.instance;
-                core._calledTime = window.getTime();
-                window.requestAnimationFrame(core._callTick);
-            }, delay);
+            if (this.fps >= 60 || delay <= 16) {
+                this._calledTime = window.getTime();
+                window.requestAnimationFrame(this._callTick);
+            } else {
+                setTimeout(function() {
+                    var core = enchant.Core.instance;
+                    core._calledTime = window.getTime();
+                    window.requestAnimationFrame(core._callTick);
+                }, Math.max(0, delay));
+            }
         },
         /**
          * @private
@@ -1515,6 +1608,7 @@ enchant.EventTarget = enchant.Class.create({
          *
          * @param {Number} key Key code for the button which will be bound.
          * @param {String} button The enchant.js button (left, right, up, down, a, b).
+         * @return {enchant.Core} this
          */
         keybind: function(key, button) {
             this._keybind[key] = button;
@@ -1544,15 +1638,17 @@ enchant.EventTarget = enchant.Class.create({
 
             this._internalButtondownListeners[key] = onxbuttondown;
             this._internalButtonupListeners[key] = onxbuttonup;
+            return this;
         },
         /**
          * Delete a key binding.
          *
          * @param {Number} key Key code that want to delete.
+         * @return {enchant.Core} this
          */
         keyunbind: function(key) {
             if (!this._keybind[key]) {
-                return;
+                return this;
             }
             var buttondowns = this._internalButtondownListeners;
             var buttonups = this._internalButtonupListeners;
@@ -1564,6 +1660,8 @@ enchant.EventTarget = enchant.Class.create({
             delete buttonups[key];
 
             delete this._keybind[key];
+
+            return this;
         },
         /**
          * Get the elapsed core time (not actual) from when core.start was called.
@@ -1574,20 +1672,25 @@ enchant.EventTarget = enchant.Class.create({
         }
     });
 
+    /**
+     * @static
+     * @private
+     * @type {Object.<String, Function>}
+     */
     enchant.Core._loadFuncs = {};
     enchant.Core._loadFuncs['jpg'] =
         enchant.Core._loadFuncs['jpeg'] =
             enchant.Core._loadFuncs['gif'] =
                 enchant.Core._loadFuncs['png'] =
-                    enchant.Core._loadFuncs['bmp'] = function(src, callback) {
-                        this.assets[src] = enchant.Surface.load(src, callback);
+                    enchant.Core._loadFuncs['bmp'] = function(src, ext, callback, onerror) {
+                        return enchant.Surface.load(src, callback, onerror);
                     };
     enchant.Core._loadFuncs['mp3'] =
         enchant.Core._loadFuncs['aac'] =
             enchant.Core._loadFuncs['m4a'] =
                 enchant.Core._loadFuncs['wav'] =
-                    enchant.Core._loadFuncs['ogg'] = function(src, callback, ext) {
-                        this.assets[src] = enchant.Sound.load(src, 'audio/' + ext, callback);
+                    enchant.Core._loadFuncs['ogg'] = function(src, ext, callback, onerror) {
+                        return enchant.Sound.load(src, 'audio/' + ext, callback, onerror);
                     };
 
     /**
@@ -1773,16 +1876,11 @@ enchant.Node = enchant.Class.create(enchant.EventTarget, {
 });
 
 var _intersectBetweenClassAndInstance = function(Class, instance) {
-    /*
-    return Class.collection.filter(function(classInstance) {
-        return enchant.Entity.prototype._intersectone.call(instance, classInstance);
-    });
-    */
     var ret = [];
     var c;
     for (var i = 0, l = Class.collection.length; i < l; i++) {
         c = Class.collection[i];
-        if (instance._intersectone(c)) {
+        if (instance._intersectOne(c)) {
             ret.push(c);
         }
     }
@@ -1791,21 +1889,12 @@ var _intersectBetweenClassAndInstance = function(Class, instance) {
 
 var _intersectBetweenClassAndClass = function(Class1, Class2) {
     var ret = [];
-    /*
-    Class1.collection.forEach(function(instance1) {
-        Class2.collection.forEach(function(instance2) {
-            if (enchant.Entity.prototype._intersectone.call(instance1, instance2)) {
-                 ret.push([ instance1, instance2 ]);
-            }
-        });
-    });
-    */
     var c1, c2;
     for (var i = 0, l = Class1.collection.length; i < l; i++) {
         c1 = Class1.collection[i];
         for (var j = 0, ll = Class2.collection.length; j < ll; j++) {
             c2 = Class2.collection[j];
-            if (c1._intersectone(c2)) {
+            if (c1._intersectOne(c2)) {
                 ret.push([ c1, c2 ]);
             }
         }
@@ -1813,11 +1902,47 @@ var _intersectBetweenClassAndClass = function(Class1, Class2) {
     return ret;
 };
 
-var _staticintersect = function(other) {
+var _intersectStrictBetweenClassAndInstance = function(Class, instance) {
+    var ret = [];
+    var c;
+    for (var i = 0, l = Class.collection.length; i < l; i++) {
+        c = Class.collection[i];
+        if (instance._intersectStrictOne(c)) {
+            ret.push(c);
+        }
+    }
+    return ret;
+};
+
+var _intersectStrictBetweenClassAndClass = function(Class1, Class2) {
+    var ret = [];
+    var c1, c2;
+    for (var i = 0, l = Class1.collection.length; i < l; i++) {
+        c1 = Class1.collection[i];
+        for (var j = 0, ll = Class2.collection.length; j < ll; j++) {
+            c2 = Class2.collection[j];
+            if (c1._intersectStrictOne(c2)) {
+                ret.push([ c1, c2 ]);
+            }
+        }
+    }
+    return ret;
+};
+
+var _staticIntersect = function(other) {
     if (other instanceof enchant.Entity) {
         return _intersectBetweenClassAndInstance(this, other);
     } else if (typeof other === 'function' && other.collection) {
         return _intersectBetweenClassAndClass(this, other);
+    }
+    return false;
+};
+
+var _staticIntersectStrict = function(other) {
+    if (other instanceof enchant.Entity) {
+        return _intersectStrictBetweenClassAndInstance(this, other);
+    } else if (typeof other === 'function' && other.collection) {
+        return _intersectStrictBetweenClassAndClass(this, other);
     }
     return false;
 };
@@ -1850,6 +1975,7 @@ enchant.Entity = enchant.Class.create(enchant.Node, {
         this._width = 0;
         this._height = 0;
         this._backgroundColor = null;
+        this._debugColor = '#0000ff';
         this._opacity = 1;
         this._visible = true;
         this._buttonMode = null;
@@ -1935,6 +2061,19 @@ enchant.Entity = enchant.Class.create(enchant.Node, {
         }
     },
     /**
+     * The Entity debug color.
+     * Must be provided in the same format as the CSS 'color' property.
+     * @type {String}
+     */
+    debugColor: {
+        get: function() {
+            return this._debugColor;
+        },
+        set: function(color) {
+            this._debugColor = color;
+        }
+    },
+    /**
      * The transparency of this entity.
      * Defines the transparency level from 0 to 1
      * (0 is completely transparent, 1 is completely opaque).
@@ -1985,13 +2124,13 @@ enchant.Entity = enchant.Class.create(enchant.Node, {
      */
     intersect: function(other) {
         if (other instanceof enchant.Entity) {
-            return this._intersectone(other);
+            return this._intersectOne(other);
         } else if (typeof other === 'function' && other.collection) {
             return _intersectBetweenClassAndInstance(other, this);
         }
         return false;
     },
-    _intersectone: function(other) {
+    _intersectOne: function(other) {
         if (this._dirty) {
             this._updateCoordinate();
         } if (other._dirty) {
@@ -1999,6 +2138,84 @@ enchant.Entity = enchant.Class.create(enchant.Node, {
         }
         return this._offsetX < other._offsetX + other.width && other._offsetX < this._offsetX + this.width &&
             this._offsetY < other._offsetY + other.height && other._offsetY < this._offsetY + this.height;
+    },
+    intersectStrict: function(other) {
+        if (other instanceof enchant.Entity) {
+            return this._intersectStrictOne(other);
+        } else if (typeof other === 'function' && other.collection) {
+            return _intersectStrictBetweenClassAndInstance(other, this);
+        }
+        return false;
+    },
+    _intersectStrictOne: function(other) {
+        if (this._dirty) {
+            this._updateCoordinate();
+        } if (other._dirty) {
+            other._updateCoordinate();
+        }
+        var rect1 = this.getOrientedBoundingRect(),
+            rect2 = other.getOrientedBoundingRect(),
+            lt1 = rect1.leftTop, rt1 = rect1.rightTop,
+            lb1 = rect1.leftBottom, rb1 = rect1.rightBottom,
+            lt2 = rect2.leftTop, rt2 = rect2.rightTop,
+            lb2 = rect2.leftBottom, rb2 = rect2.rightBottom,
+            ltx1 = lt1[0], lty1 = lt1[1], rtx1 = rt1[0], rty1 = rt1[1],
+            lbx1 = lb1[0], lby1 = lb1[1], rbx1 = rb1[0], rby1 = rb1[1],
+            ltx2 = lt2[0], lty2 = lt2[1], rtx2 = rt2[0], rty2 = rt2[1],
+            lbx2 = lb2[0], lby2 = lb2[1], rbx2 = rb2[0], rby2 = rb2[1],
+            t1 = [ rtx1 - ltx1, rty1 - lty1 ],
+            r1 = [ rbx1 - rtx1, rby1 - rty1 ],
+            b1 = [ lbx1 - rbx1, lby1 - rby1 ],
+            l1 = [ ltx1 - lbx1, lty1 - lby1 ],
+            t2 = [ rtx2 - ltx2, rty2 - lty2 ],
+            r2 = [ rbx2 - rtx2, rby2 - rty2 ],
+            b2 = [ lbx2 - rbx2, lby2 - rby2 ],
+            l2 = [ ltx2 - lbx2, lty2 - lby2 ],
+            cx1 = (ltx1 + rtx1 + lbx1 + rbx1) >> 2,
+            cy1 = (lty1 + rty1 + lby1 + rby1) >> 2,
+            cx2 = (ltx2 + rtx2 + lbx2 + rbx2) >> 2,
+            cy2 = (lty2 + rty2 + lby2 + rby2) >> 2,
+            i, j, poss1, poss2, dirs1, dirs2, pos1, pos2, dir1, dir2,
+            px1, py1, px2, py2, dx1, dy1, dx2, dy2, vx, vy, c, c1, c2;
+        if (t1[0] * (cy2 - lty1) - t1[1] * (cx2 - ltx1) > 0 &&
+            r1[0] * (cy2 - rty1) - r1[1] * (cx2 - rtx1) > 0 &&
+            b1[0] * (cy2 - rby1) - b1[1] * (cx2 - rbx1) > 0 &&
+            l1[0] * (cy2 - lby1) - l1[1] * (cx2 - lbx1) > 0) {
+            return true;
+        } else if (t2[0] * (cy1 - lty2) - t2[1] * (cx1 - ltx2) > 0 &&
+            r2[0] * (cy1 - rty2) - r2[1] * (cx1 - rtx2) > 0 &&
+            b2[0] * (cy1 - rby2) - b2[1] * (cx1 - rbx2) > 0 &&
+            l2[0] * (cy1 - lby2) - l2[1] * (cx1 - lbx2) > 0) {
+            return true;
+        } else {
+            poss1 = [ lt1, rt1, rb1, lb1 ];
+            poss2 = [ lt2, rt2, rb2, lb2 ];
+            dirs1 = [ t1, r1, b1, l1 ];
+            dirs2 = [ t2, r2, b2, l2 ];
+            for (i = 0; i < 4; i++) {
+                pos1 = poss1[i];
+                px1 = pos1[0]; py1 = pos1[1];
+                dir1 = dirs1[i];
+                dx1 = dir1[0]; dy1 = dir1[1];
+                for (j = 0; j < 4; j++) {
+                    pos2 = poss2[j];
+                    px2 = pos2[0]; py2 = pos2[1];
+                    dir2 = dirs2[j];
+                    dx2 = dir2[0]; dy2 = dir2[1];
+                    c = dx1 * dy2 - dy1 * dx2;
+                    if (c !== 0) {
+                        vx = px2 - px1;
+                        vy = py2 - py1;
+                        c1 = (vx * dy1 - vy * dx1) / c;
+                        c2 = (vx * dy2 - vy * dx2) / c;
+                        if (0 < c1 && c1 < 1 && 0 < c2 && c2 < 1) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
     },
     /**
      * Performs a collision detection based on distance from the Entity's central point.
@@ -2136,6 +2353,38 @@ enchant.Entity = enchant.Class.create(enchant.Node, {
             }
         }, this);
     },
+    getBoundingRect: function() {
+        var w = this.width || 0;
+        var h = this.height || 0;
+        var mat = this._matrix;
+        var m11w = mat[0] * w, m12w = mat[1] * w,
+            m21h = mat[2] * h, m22h = mat[3] * h,
+            mdx = mat[4], mdy = mat[5];
+        var xw = [ mdx, m11w + mdx, m21h + mdx, m11w + m21h + mdx ].sort(function(a, b) { return a - b; });
+        var yh = [ mdy, m12w + mdy, m22h + mdy, m12w + m22h + mdy ].sort(function(a, b) { return a - b; });
+
+        return {
+            left: xw[0],
+            top: yh[0],
+            width: xw[3] - xw[0],
+            height: yh[3] - yh[0]
+        };
+    },
+    getOrientedBoundingRect: function() {
+        var w = this.width || 0;
+        var h = this.height || 0;
+        var mat = this._matrix;
+        var m11w = mat[0] * w, m12w = mat[1] * w,
+            m21h = mat[2] * h, m22h = mat[3] * h,
+            mdx = mat[4], mdy = mat[5];
+
+        return {
+            leftTop: [ mdx, mdy ],
+            rightTop: [ m11w + mdx, m12w + mdy ],
+            leftBottom: [ m21h + mdx, m22h + mdy ],
+            rightBottom: [ m11w + m21h + mdx, m12w + m22h + mdy ]
+        };
+    },
     getConstructor: function() {
         return Object.getPrototypeOf(this).constructor;
     }
@@ -2152,7 +2401,8 @@ var _collectizeConstructor = function(Constructor) {
     } else {
         Constructor._collectionTarget = [];
     }
-    Constructor.intersect = _staticintersect;
+    Constructor.intersect = _staticIntersect;
+    Constructor.intersectStrict = _staticIntersectStrict;
     Constructor.collection = [];
     Constructor._collective = true;
 };
@@ -2187,6 +2437,7 @@ enchant.Sprite = enchant.Class.create(enchant.Entity, {
         this.width = width;
         this.height = height;
         this._image = null;
+        this._debugColor = '#ff0000';
         this._frameLeft = 0;
         this._frameTop = 0;
         this._frame = 0;
@@ -2214,6 +2465,9 @@ enchant.Sprite = enchant.Class.create(enchant.Entity, {
             return this._image;
         },
         set: function(image) {
+            if (image === undefined) {
+                throw new Error('Assigned value on Sprite.image is undefined. Please double-check image path, and check if the image you want to use is preload before use.');
+            }
             if (image === this._image) {
                 return;
             }
@@ -2282,7 +2536,7 @@ enchant.Sprite = enchant.Class.create(enchant.Entity, {
         },
         set: function(width) {
             this._width = width;
-            this._setFrame();
+            this._setFrame(this._frame);
             this._dirty = true;
         }
     },
@@ -2296,43 +2550,56 @@ enchant.Sprite = enchant.Class.create(enchant.Entity, {
         },
         set: function(height) {
             this._height = height;
-            this._setFrame();
+            this._setFrame(this._frame);
             this._dirty = true;
         }
     },
     cvsRender: function(ctx) {
-        if (this._image == null || this._width === 0 || this._height === 0) {
-            return;
-        }
-        var image = this._image;
-        var element = image._element;
-        var sx = this._frameLeft;
-        var sy = this._frameTop;
-        var sw = Math.min(this.width, image.width - sx);
-        var sh = Math.min(this.height, image.height - sy);
-        var dw = Math.min(image.width, this.width);
-        var dh = Math.min(image.height, this.height);
-        var x, y, w, h;
-        for (y = 0; y < this.height; y += dh) {
-            h = (this.height < y + dh) ? this.height - y : dh;
-            for (x = 0; x < this.width; x += dw) {
-                w = (this.width < x + dw) ? this.width - x : dw;
-                ctx.drawImage(element, sx, sy,
-                    sw * w / dw, sh * h / dh, x, y, w, h);
+        var image = this._image,
+            w = this._width, h = this._height,
+            iw, ih, elem, sx, sy, sw, sh;
+        if (image && w !== 0 && h !== 0) {
+            iw = image.width, ih = image.height;
+            if (iw < w || ih < h) {
+                ctx.fillStyle = enchant.Surface._getPattern(image);
+                ctx.fillRect(0, 0, w, h);
+            } else {
+                elem = image._element;
+                sx = this._frameLeft;
+                sy = Math.min(this._frameTop, ih - h);
+                sw = Math.min(iw - sx, w);
+                sh = Math.min(ih - sy, h);
+                ctx.drawImage(elem, sx, sy, sw, sh, 0, 0, w, h);
             }
         }
     },
-    domRender: function(element) {
-        if (this._image) {
-            if (this._image._css) {
-                this._style['background-image'] = this._image._css;
-                this._style['background-position'] =
-                    -this._frameLeft + 'px ' +
-                    -this._frameTop + 'px';
-            } else if (this._image._element) {
-            }
+    domRender: (function() {
+        if (enchant.ENV.VENDOR_PREFIX === 'ms') {
+            return function(element) {
+                if (this._image) {
+                    if (this._image._css) {
+                        this._style['background-image'] = this._image._css;
+                        this._style['background-position'] =
+                            -this._frameLeft + 'px ' +
+                            -this._frameTop + 'px';
+                    } else if (this._image._element) {
+                    }
+                }
+            };
+        } else {
+            return function(element) {
+                if (this._image) {
+                    if (this._image._css) {
+                        this._style['background-image'] = this._image._css;
+                        this._style['background-position'] =
+                            -this._frameLeft + 'px ' +
+                            -this._frameTop + 'px';
+                    } else if (this._image._element) {
+                    }
+                }
+            };
         }
-    }
+    }())
 });
 
 /**
@@ -2353,6 +2620,8 @@ enchant.Label = enchant.Class.create(enchant.Entity, {
         this.width = 300;
         this.font = '14px serif';
         this.textAlign = 'left';
+
+        this._debugColor = '#ff0000';
     },
     width: {
         get: function() {
@@ -2497,33 +2766,33 @@ enchant.Label = enchant.Class.create(enchant.Entity, {
         } else {
             this._boundOffset = 0;
         }
+    },
+    getMetrics: function(text) {
+        var ret = {};
+        var div, width, height;
+        if (document.body) {
+            div = document.createElement('div');
+            for (var prop in this._style) {
+                if(prop !== 'width' && prop !== 'height') {
+                    div.style[prop] = this._style[prop];
+                }
+            }
+            text = text || this._text;
+            div.innerHTML = text.replace(/ /g, '&nbsp;');
+            div.style.whiteSpace = 'noWrap';
+            div.style.lineHeight = 1;
+            document.body.appendChild(div);
+            ret.height = parseInt(getComputedStyle(div).height, 10) + 1;
+            div.style.position = 'absolute';
+            ret.width = parseInt(getComputedStyle(div).width, 10) + 1;
+            document.body.removeChild(div);
+        } else {
+            ret.width = this.width;
+            ret.height = this.height;
+        }
+        return ret;
     }
 });
-
-enchant.Label.prototype.getMetrics = function(text) {
-    var ret = {};
-    var div, width, height;
-    if (document.body) {
-        div = document.createElement('div');
-        for (var prop in this._style) {
-            if(prop !== 'width' && prop !== 'height') {
-                div.style[prop] = this._style[prop];
-            }
-        }
-        text = text || this._text;
-        div.innerHTML = text.replace(/ /g, '&nbsp;');
-        div.style.whiteSpace = 'noWrap';
-        document.body.appendChild(div);
-        ret.height = parseInt(getComputedStyle(div).height, 10) + 1;
-        div.style.position = 'absolute';
-        ret.width = parseInt(getComputedStyle(div).width, 10) + 1;
-        document.body.removeChild(div);
-    } else {
-        ret.width = this.width;
-        ret.height = this.height;
-    }
-    return ret;
-};
 
 /**
  * @scope enchant.Map.prototype
@@ -2939,6 +3208,9 @@ enchant.Group = enchant.Class.create(enchant.Node, {
      * @param {enchant.Node} node Node to be added.
      */
     addChild: function(node) {
+        if (node.parentNode) {
+            node.parentNode.removeChild(node);
+        }
         this.childNodes.push(node);
         node.parentNode = this;
         var childAdded = new enchant.Event('childadded');
@@ -2958,6 +3230,9 @@ enchant.Group = enchant.Class.create(enchant.Node, {
      * @param {enchant.Node} reference Node in position before insertion.
      */
     insertBefore: function(node, reference) {
+        if (node.parentNode) {
+            node.parentNode.removeChild(node);
+        }
         var i = this.childNodes.indexOf(reference);
         if (i !== -1) {
             this.childNodes.splice(i, 0, node);
@@ -3101,9 +3376,6 @@ enchant.Group = enchant.Class.create(enchant.Node, {
 
 enchant.Matrix = enchant.Class.create({
     initialize: function() {
-        if (enchant.Matrix.instance) {
-            return enchant.Matrix.instance;
-        }
         this.reset();
     },
     reset: function() {
@@ -3483,18 +3755,16 @@ enchant.DomLayer = enchant.Class.create(enchant.Group, {
         var core = enchant.Core.instance;
         enchant.Group.call(this);
 
-        this.width = this._width = core.width;
-        this.height = this._height = core.height;
-
         this._touchEventTarget = null;
 
         this._element = document.createElement('div');
-        this._element.style.width = this.width + 'px';
-        this._element.style.height = this.height + 'px';
         this._element.style.position = 'absolute';
 
         this._domManager = new enchant.DomManager(this, this._element);
         this._domManager.layer = this;
+
+        this.width = core.width;
+        this.height = core.height;
 
         var touch = [
             enchant.Event.TOUCH_START,
@@ -3532,6 +3802,57 @@ enchant.DomLayer = enchant.Class.create(enchant.Group, {
         this.addEventListener('childremoved', __onchildremoved);
         this.addEventListener('childadded', __onchildadded);
 
+    },
+    width: {
+        get: function() {
+            return this._width;
+        },
+        set: function(width) {
+            this._width = width;
+            this._element.style.width = width + 'px';
+        }
+    },
+    height: {
+        get: function() {
+            return this._height;
+        },
+        set: function(height) {
+            this._height = height;
+            this._element.style.height = height + 'px';
+        }
+    },
+    addChild: function(node) {
+        this.childNodes.push(node);
+        node.parentNode = this;
+        var childAdded = new enchant.Event('childadded');
+        childAdded.node = node;
+        childAdded.next = null;
+        this.dispatchEvent(childAdded);
+        node.dispatchEvent(new enchant.Event('added'));
+        if (this.scene) {
+            node.scene = this.scene;
+            var addedToScene = new enchant.Event('addedtoscene');
+            node.dispatchEvent(addedToScene);
+        }
+    },
+    insertBefore: function(node, reference) {
+        var i = this.childNodes.indexOf(reference);
+        if (i !== -1) {
+            this.childNodes.splice(i, 0, node);
+            node.parentNode = this;
+            var childAdded = new enchant.Event('childadded');
+            childAdded.node = node;
+            childAdded.next = reference;
+            this.dispatchEvent(childAdded);
+            node.dispatchEvent(new enchant.Event('added'));
+            if (this.scene) {
+                node.scene = this.scene;
+                var addedToScene = new enchant.Event('addedtoscene');
+                node.dispatchEvent(addedToScene);
+            }
+        } else {
+            this.addChild(node);
+        }
     },
     _startRendering: function() {
         this.addEventListener('exitframe', this._onexitframe);
@@ -3630,19 +3951,12 @@ enchant.CanvasLayer = enchant.Class.create(enchant.Group, {
         };
         this._cvsCache.layer = this;
 
-        this.width = core.width;
-        this.height = core.height;
-
         this._element = document.createElement('canvas');
-        this._element.width = core.width;
-        this._element.height = core.height;
         this._element.style.position = 'absolute';
         // issue 179
         this._element.style.left = this._element.style.top = '0px';
 
         this._detect = document.createElement('canvas');
-        this._detect.width = core.width;
-        this._detect.height = core.height;
         this._detect.style.position = 'absolute';
         this._lastDetected = 0;
 
@@ -3650,6 +3964,9 @@ enchant.CanvasLayer = enchant.Class.create(enchant.Group, {
         this._dctx = this._detect.getContext('2d');
 
         this._colorManager = new enchant.DetectColorManager(16, 256);
+
+        this.width = core.width;
+        this.height = core.height;
 
         var touch = [
             enchant.Event.TOUCH_START,
@@ -3681,7 +3998,7 @@ enchant.CanvasLayer = enchant.Class.create(enchant.Group, {
             }
             child._dirty = true;
             enchant.Matrix.instance.stack.push(self._matrix);
-            layer._rendering(child, render);
+            enchant.CanvasRenderer.instance.render(layer.context, child, render);
             enchant.Matrix.instance.stack.pop(self._matrix);
         };
 
@@ -3700,6 +4017,57 @@ enchant.CanvasLayer = enchant.Class.create(enchant.Group, {
         this.addEventListener('childremoved', __onchildremoved);
         this.addEventListener('childadded', __onchildadded);
 
+    },
+    width: {
+        get: function() {
+            return this._width;
+        },
+        set: function(width) {
+            this._width = width;
+            this._element.width = this._detect.width = width;
+        }
+    },
+    height: {
+        get: function() {
+            return this._height;
+        },
+        set: function(height) {
+            this._height = height;
+            this._element.height = this._detect.height = height;
+        }
+    },
+    addChild: function(node) {
+        this.childNodes.push(node);
+        node.parentNode = this;
+        var childAdded = new enchant.Event('childadded');
+        childAdded.node = node;
+        childAdded.next = null;
+        this.dispatchEvent(childAdded);
+        node.dispatchEvent(new enchant.Event('added'));
+        if (this.scene) {
+            node.scene = this.scene;
+            var addedToScene = new enchant.Event('addedtoscene');
+            node.dispatchEvent(addedToScene);
+        }
+    },
+    insertBefore: function(node, reference) {
+        var i = this.childNodes.indexOf(reference);
+        if (i !== -1) {
+            this.childNodes.splice(i, 0, node);
+            node.parentNode = this;
+            var childAdded = new enchant.Event('childadded');
+            childAdded.node = node;
+            childAdded.next = reference;
+            this.dispatchEvent(childAdded);
+            node.dispatchEvent(new enchant.Event('added'));
+            if (this.scene) {
+                node.scene = this.scene;
+                var addedToScene = new enchant.Event('addedtoscene');
+                node.dispatchEvent(addedToScene);
+            }
+        } else {
+            this.addChild(node);
+        }
     },
     /**
      * @private
@@ -3720,112 +4088,7 @@ enchant.CanvasLayer = enchant.Class.create(enchant.Group, {
         var ctx = this.context;
         ctx.clearRect(0, 0, core.width, core.height);
         var render = new enchant.Event(enchant.Event.RENDER);
-        this._rendering(this, render);
-    },
-    _rendering:  function(node, e) {
-        var core = enchant.Core.instance;
-        var matrix = enchant.Matrix.instance;
-        var stack = matrix.stack;
-        var width = node.width;
-        var height = node.height;
-        var ctx = this.context;
-        var child;
-        ctx.save();
-        node.dispatchEvent(e);
-        // composite
-        if (node.compositeOperation) {
-            ctx.globalCompositeOperation = node.compositeOperation;
-        } else {
-            ctx.globalCompositeOperation = 'source-over';
-        }
-        ctx.globalAlpha = (typeof node._opacity === 'number') ? node._opacity : 1.0;
-        // transform
-        this._transform(node, ctx);
-        // render
-        if (typeof node._visible === 'undefined' || node._visible) {
-            if (node._backgroundColor) {
-                ctx.fillStyle = node._backgroundColor;
-                ctx.fillRect(0, 0, width, height);
-            }
-
-            if (node.cvsRender) {
-                node.cvsRender(ctx);
-            }
-
-            if (core._debug) {
-                if (node instanceof enchant.Label || node instanceof enchant.Sprite) {
-                    ctx.strokeStyle = '#ff0000';
-                } else {
-                    ctx.strokeStyle = '#0000ff';
-                }
-                ctx.strokeRect(0, 0, width, height);
-            }
-            if (node._clipping) {
-                ctx.beginPath();
-                ctx.rect(0, 0, width, height);
-                ctx.clip();
-            }
-        }
-        if (node.childNodes) {
-            for (var i = 0, l = node.childNodes.length; i < l; i++) {
-                child = node.childNodes[i];
-                this._rendering(child, e);
-            }
-        }
-        ctx.restore();
-        enchant.Matrix.instance.stack.pop();
-    },
-    _detectrendering: function(node) {
-        var width = node.width;
-        var height = node.height;
-        var ctx = this._dctx;
-        var child;
-        ctx.save();
-        this._transform(node, ctx);
-        ctx.fillStyle = node._cvsCache.detectColor;
-        if (node._touchEnabled) {
-            if (node.detectRender) {
-                node.detectRender(ctx);
-            } else {
-                ctx.fillRect(0, 0, width, height);
-            }
-        }
-        if (node._clipping) {
-            ctx.beginPath();
-            ctx.rect(0, 0, width, height);
-            ctx.clip();
-        }
-        if (node.childNodes) {
-            for (var i = 0, l = node.childNodes.length; i < l; i++) {
-                child = node.childNodes[i];
-                this._detectrendering(child);
-            }
-        }
-        ctx.restore();
-        enchant.Matrix.instance.stack.pop();
-    },
-    _transform: function(node, ctx) {
-        var matrix = enchant.Matrix.instance;
-        var stack = matrix.stack;
-        var newmat;
-        if (node._dirty) {
-            matrix.makeTransformMatrix(node, node._cvsCache.matrix);
-            newmat = [];
-            matrix.multiply(stack[stack.length - 1], node._cvsCache.matrix, newmat);
-            node._matrix = newmat;
-        } else {
-            newmat = node._matrix;
-        }
-        stack.push(newmat);
-        ctx.setTransform.apply(ctx, newmat);
-        var ox = (typeof node._originX === 'number') ? node._originX : node._width / 2 || 0;
-        var oy = (typeof node._originY === 'number') ? node._originY : node._height / 2 || 0;
-        var vec = [ ox, oy ];
-        matrix.multiplyVec(newmat, vec, vec);
-        node._offsetX = vec[0] - ox;
-        node._offsetY = vec[1] - oy;
-        node._dirty = false;
-
+        enchant.CanvasRenderer.instance.render(ctx, this, render);
     },
     _determineEventTarget: function(e) {
         return this._getEntityByPosition(e.x, e.y);
@@ -3835,7 +4098,7 @@ enchant.CanvasLayer = enchant.Class.create(enchant.Group, {
         var ctx = this._dctx;
         if (this._lastDetected < core.frame) {
             ctx.clearRect(0, 0, this.width, this.height);
-            this._detectrendering(this);
+            enchant.CanvasRenderer.instance.detectRender(ctx, this);
             this._lastDetected = core.frame;
         }
         var color = ctx.getImageData(x, y, 1, 1).data;
@@ -3876,6 +4139,105 @@ enchant.CanvasLayer._detachCache = function(node, layer, onchildadded, onchildre
     }
 };
 
+enchant.CanvasRenderer = enchant.Class.create({
+    render: function(ctx, node, e) {
+        var width, height, child;
+        ctx.save();
+        node.dispatchEvent(e);
+        // transform
+        this.transform(ctx, node);
+        if (typeof node._visible === 'undefined' || node._visible) {
+            width = node.width;
+            height = node.height;
+            // composite
+            if (node.compositeOperation) {
+                ctx.globalCompositeOperation = node.compositeOperation;
+            }
+            ctx.globalAlpha = (typeof node._opacity === 'number') ? node._opacity : 1.0;
+            // render
+            if (node._backgroundColor) {
+                ctx.fillStyle = node._backgroundColor;
+                ctx.fillRect(0, 0, width, height);
+            }
+
+            if (node.cvsRender) {
+                node.cvsRender(ctx);
+            }
+
+            if (enchant.Core.instance._debug && node._debugColor) {
+                ctx.strokeStyle = node._debugColor;
+                ctx.strokeRect(0, 0, width, height);
+            }
+            if (node._clipping) {
+                ctx.beginPath();
+                ctx.rect(0, 0, width, height);
+                ctx.clip();
+            }
+            if (node.childNodes) {
+                for (var i = 0, l = node.childNodes.length; i < l; i++) {
+                    child = node.childNodes[i];
+                    this.render(ctx, child, e);
+                }
+            }
+        }
+        ctx.restore();
+        enchant.Matrix.instance.stack.pop();
+    },
+    detectRender: function(ctx, node) {
+        var width, height, child;
+        if (typeof node._visible === 'undefined' || node._visible) {
+            width = node.width;
+            height = node.height;
+            ctx.save();
+            this.transform(ctx, node);
+            ctx.fillStyle = node._cvsCache.detectColor;
+            if (node._touchEnabled) {
+                if (node.detectRender) {
+                    node.detectRender(ctx);
+                } else {
+                    ctx.fillRect(0, 0, width, height);
+                }
+            }
+            if (node._clipping) {
+                ctx.beginPath();
+                ctx.rect(0, 0, width, height);
+                ctx.clip();
+            }
+            if (node.childNodes) {
+                for (var i = 0, l = node.childNodes.length; i < l; i++) {
+                    child = node.childNodes[i];
+                    this.detectRender(ctx, child);
+                }
+            }
+            ctx.restore();
+            enchant.Matrix.instance.stack.pop();
+        }
+    },
+    transform: function(ctx, node) {
+        var matrix = enchant.Matrix.instance;
+        var stack = matrix.stack;
+        var newmat, ox, oy, vec;
+        if (node._dirty) {
+            matrix.makeTransformMatrix(node, node._cvsCache.matrix);
+            newmat = [];
+            matrix.multiply(stack[stack.length - 1], node._cvsCache.matrix, newmat);
+            node._matrix = newmat;
+            ox = (typeof node._originX === 'number') ? node._originX : node._width / 2 || 0;
+            oy = (typeof node._originY === 'number') ? node._originY : node._height / 2 || 0;
+            vec = [ ox, oy ];
+            matrix.multiplyVec(newmat, vec, vec);
+            node._offsetX = vec[0] - ox;
+            node._offsetY = vec[1] - oy;
+            node._dirty = false;
+        } else {
+            newmat = node._matrix;
+        }
+        stack.push(newmat);
+        ctx.setTransform.apply(ctx, newmat);
+    }
+});
+enchant.CanvasRenderer.instance = new enchant.CanvasRenderer();
+
 /**
  * @scope enchant.Scene.prototype
  * @type {*}
@@ -3901,9 +4263,6 @@ enchant.Scene = enchant.Class.create(enchant.Group, {
         // Call initialize method of enchant.Group
         enchant.Group.call(this);
 
-        this.width = core.width;
-        this.height = core.height;
-
         // All nodes (entities, groups, scenes) have reference to the scene that it belongs to.
         this.scene = this;
 
@@ -3911,12 +4270,9 @@ enchant.Scene = enchant.Class.create(enchant.Group, {
 
         // Create div tag which possesses its layers
         this._element = document.createElement('div');
-        this._element.style.width = this.width + 'px';
-        this._element.style.height = this.height + 'px';
         this._element.style.position = 'absolute';
         this._element.style.overflow = 'hidden';
         this._element.style[enchant.ENV.VENDOR_PREFIX + 'TransformOrigin'] = '0 0';
-        this._element.style[enchant.ENV.VENDOR_PREFIX + 'Transform'] = 'scale(' + enchant.Core.instance.scale + ')';
 
         this._layers = {};
         this._layerPriority = [];
@@ -3934,6 +4290,10 @@ enchant.Scene = enchant.Class.create(enchant.Group, {
                 layer.dispatchEvent(new enchant.Event(enchant.Event.EXIT_FRAME));
             }
         };
+
+        this.addEventListener(enchant.Event.CORE_RESIZE, this._oncoreresize);
+
+        this._oncoreresize(core);
     },
     x: {
         get: function() {
@@ -3954,6 +4314,28 @@ enchant.Scene = enchant.Class.create(enchant.Group, {
             this._y = y;
             for (var type in this._layers) {
                 this._layers[type].y = y;
+            }
+        }
+    },
+    width: {
+        get: function() {
+            return this._width;
+        },
+        set: function(width) {
+            this._width = width;
+            for (var type in this._layers) {
+                this._layers[type].width = width;
+            }
+        }
+    },
+    height: {
+        get: function() {
+            return this._height;
+        },
+        set: function(height) {
+            this._height = height;
+            for (var type in this._layers) {
+                this._layers[type].height = height;
             }
         }
     },
@@ -3998,6 +4380,17 @@ enchant.Scene = enchant.Class.create(enchant.Group, {
             this._backgroundColor = this._element.style.backgroundColor = color;
         }
     },
+    _oncoreresize: function(e) {
+        this._element.style.width = e.width + 'px';
+        this.width = e.width;
+        this._element.style.height = e.height + 'px';
+        this.height = e.height;
+        this._element.style[enchant.ENV.VENDOR_PREFIX + 'Transform'] = 'scale(' + e.scale + ')';
+
+        for (var type in this._layers) {
+            this._layers[type].dispatchEvent(e);
+        }
+    },
     addLayer: function(type, i) {
         var core = enchant.Core.instance;
         if (this._layers[type]) {
@@ -4040,19 +4433,19 @@ enchant.Scene = enchant.Class.create(enchant.Group, {
     _onchildadded: function(e) {
         var child = e.node;
         var next = e.next;
+        var target, i;
         if (child._element) {
-            if (!this._layers.Dom) {
-                this.addLayer('Dom', 1);
-            }
-            this._layers.Dom.insertBefore(child, next);
-            child._layer = this._layers.Dom;
+            target = 'Dom';
+            i = 1;
         } else {
-            if (!this._layers.Canvas) {
-                this.addLayer('Canvas', 0);
-            }
-            this._layers.Canvas.insertBefore(child, next);
-            child._layer = this._layers.Canvas;
+            target = 'Canvas';
+            i = 0;
         }
+        if (!this._layers[target]) {
+            this.addLayer(target, i);
+        }
+        child._layer = this._layers[target];
+        this._layers[target].insertBefore(child, next);
         child.parentNode = this;
     },
     _onchildremoved: function(e) {
@@ -4075,6 +4468,52 @@ enchant.Scene = enchant.Class.create(enchant.Group, {
 });
 
 /**
+ * @scope enchant.LoadingScene.prototype
+ */
+enchant.LoadingScene = enchant.Class.create(enchant.Scene, {
+    /**
+     * @name enchant.LoadingScene.
+     * @class
+     * @constructs
+     * @extends enchant.Scene
+     */
+    initialize: function() {
+        enchant.Scene.call(this);
+        this.backgroundColor = '#000';
+        var barWidth = this.width * 0.4 | 0;
+        var barHeight = this.width * 0.05 | 0;
+        var border = barWidth * 0.03 | 0;
+        var bar = new enchant.Sprite(barWidth, barHeight);
+        bar.disableCollection();
+        bar.x = (this.width - barWidth) / 2;
+        bar.y = (this.height - barHeight) / 2;
+        var image = new enchant.Surface(barWidth, barHeight);
+        image.context.fillStyle = '#fff';
+        image.context.fillRect(0, 0, barWidth, barHeight);
+        image.context.fillStyle = '#000';
+        image.context.fillRect(border, border, barWidth - border * 2, barHeight - border * 2);
+        bar.image = image;
+        var progress = 0, _progress = 0;
+        this.addEventListener('progress', function(e) {
+            // avoid #167 https://github.com/wise9/enchant.js/issues/177
+            progress = e.loaded / e.total * 1.0;
+        });
+        bar.addEventListener('enterframe', function() {
+            _progress *= 0.9;
+            _progress += progress * 0.1;
+            image.context.fillStyle = '#fff';
+            image.context.fillRect(border, 0, (barWidth - border * 2) * _progress, barHeight);
+        });
+        this.addChild(bar);
+        this.addEventListener('load', function(e) {
+            var core = enchant.Core.instance;
+            core.removeScene(core.loadingScene);
+            core.dispatchEvent(e);
+        });
+    }
+});
+
+/**
  * @scope enchant.CanvasScene.prototype
  * @type {*}
  */
@@ -4093,8 +4532,8 @@ enchant.CanvasScene = enchant.Class.create(enchant.Scene, {
     _onchildadded: function(e) {
         var child = e.node;
         var next = e.next;
-        this._layers.Canvas.insertBefore(child, next);
         child._layer = this._layers.Canvas;
+        this._layers.Canvas.insertBefore(child, next);
     },
     _onenter: function() {
         this._layers.Canvas._startRendering();
@@ -4125,8 +4564,8 @@ enchant.DOMScene = enchant.Class.create(enchant.Scene, {
     _onchildadded: function(e) {
         var child = e.node;
         var next = e.next;
-        this._layers.Dom.insertBefore(child, next);
         child._layer = this._layers.Dom;
+        this._layers.Dom.insertBefore(child, next);
     },
     _onenter: function() {
         this._layers.Dom._startRendering();
@@ -4313,9 +4752,12 @@ enchant.Surface = enchant.Class.create(enchant.EventTarget, {
  * pixel acquisition and other image manipulation might be limited).
  *
  * @param {String} src The file path of the image to be loaded.
+ * @param {Function} callback on load callback.
+ * @param {Function} [onerror] on error callback.
  * @static
+ * @return {enchant.Surface} Surface
  */
-enchant.Surface.load = function(src, callback) {
+enchant.Surface.load = function(src, callback, onerror) {
     var image = new Image();
     var surface = Object.create(enchant.Surface.prototype, {
         context: { value: null },
@@ -4323,11 +4765,14 @@ enchant.Surface.load = function(src, callback) {
         _element: { value: image }
     });
     enchant.EventTarget.call(surface);
-    if (typeof callback === 'function') {
-        surface.addEventListener('load', callback);
-    }
+    onerror = onerror || function() {};
+    surface.addEventListener('load', callback);
+    surface.addEventListener('error', onerror);
     image.onerror = function() {
-        throw new Error('Cannot load an asset: ' + image.src);
+        var e = new enchant.Event(enchant.Event.ERROR);
+        e.message = 'Cannot load an asset: ' + image.src;
+        enchant.Core.instance.dispatchEvent(e);
+        surface.dispatchEvent(e);
     };
     image.onload = function() {
         surface.width = image.width;
@@ -4337,6 +4782,119 @@ enchant.Surface.load = function(src, callback) {
     image.src = src;
     return surface;
 };
+enchant.Surface._staticCanvas2DContext = document.createElement('canvas').getContext('2d');
+
+enchant.Surface._getPattern = function(surface, force) {
+    if (!surface._pattern || force) {
+        surface._pattern = this._staticCanvas2DContext.createPattern(surface._element, 'repeat');
+    }
+    return surface._pattern;
+};
+
+if (window.Deferred) {
+    enchant.Deferred = window.Deferred;
+} else {
+    enchant.Deferred = enchant.Class.create({
+        initialize: function() {
+            this._succ = this._fail = this._next = this._id = null;
+            this._tail = this;
+        },
+        next: function(func) {
+            var q = new enchant.Deferred();
+            q._succ = func;
+            return this._add(q);
+        },
+        error: function(func) {
+            var q = new enchant.Deferred();
+            q._fail = func;
+            return this._add(q);
+        },
+        _add: function(queue) {
+            this._tail._next = queue;
+            this._tail = queue;
+            return this;
+        },
+        call: function(arg) {
+            var received;
+            var queue = this;
+            while (queue && !queue._succ) {
+                queue = queue._next;
+            }
+            if (!(queue instanceof enchant.Deferred)) {
+                return;
+            }
+            try {
+                received = queue._succ(arg);
+            } catch (e) {
+                return queue.fail(e);
+            }
+            if (received instanceof enchant.Deferred) {
+                enchant.Deferred._insert(queue, received);
+            } else if (queue._next instanceof enchant.Deferred) {
+                queue._next.call(received);
+            }
+        },
+        fail: function(arg) {
+            var result, err,
+                queue = this;
+            while (queue && !queue._fail) {
+                queue = queue._next;
+            }
+            if (queue instanceof enchant.Deferred) {
+                result = queue._fail(arg);
+                queue.call(result);
+            } else if (arg instanceof Error) {
+                throw arg;
+            } else {
+                err = new Error('failed in Deferred');
+                err.arg = arg;
+                throw err;
+            }
+        }
+    });
+    enchant.Deferred._insert = function(queue, ins) {
+        if (queue._next instanceof enchant.Deferred) {
+            ins._next = queue._next;
+        }
+        queue._next = ins;
+    };
+    enchant.Deferred.next = function(func) {
+        var q = new enchant.Deferred().next(func);
+        q._id = setTimeout(function() { q.call(); }, 0);
+        return q;
+    };
+    enchant.Deferred.parallel = function(arg) {
+        var q = new enchant.Deferred();
+        q._id = setTimeout(function() { q.call(); }, 0);
+        var progress = 0;
+        var ret = (arg instanceof Array) ? [] : {};
+        var p = new enchant.Deferred();
+        for (var prop in arg) {
+            if (arg.hasOwnProperty(prop)) {
+                progress++;
+                /*jshint loopfunc:true */
+                (function(queue, name) {
+                    queue.next(function(arg) {
+                        progress--;
+                        ret[name] = arg;
+                        if (progress <= 0) {
+                            p.call(ret);
+                        }
+                    })
+                    .error(function(err) { p.fail(err); });
+                    if (typeof queue._id === 'number') {
+                        clearTimeout(queue._id);
+                    }
+                    queue._id = setTimeout(function() { queue.call(); }, 0);
+                }(arg[prop], prop));
+            }
+        }
+        if (!progress) {
+            p._id = setTimeout(function() { p.call(ret); }, 0);
+        }
+        return q.next(function() { return p; });
+    };
+}
 
 /**
  * @scope enchant.DOMSound.prototype
@@ -4442,9 +5000,12 @@ enchant.DOMSound = enchant.Class.create(enchant.EventTarget, {
  *
  * @param {String} src Path of the audio file to be loaded.
  * @param {String} [type] MIME Type of the audio file.
+ * @param {Function} callback on load callback.
+ * @param {Function} [onerror] on error callback.
+ * @return {enchant.DOMSound} DOMSound
  * @static
  */
-enchant.DOMSound.load = function(src, type, callback) {
+enchant.DOMSound.load = function(src, type, callback, onerror) {
     if (type == null) {
         var ext = enchant.Core.findExt(src);
         if (ext) {
@@ -4454,12 +5015,12 @@ enchant.DOMSound.load = function(src, type, callback) {
         }
     }
     type = type.replace('mp3', 'mpeg').replace('m4a', 'mp4');
+    onerror = onerror || function() {};
 
     var sound = Object.create(enchant.DOMSound.prototype);
     enchant.EventTarget.call(sound);
-    sound.addEventListener('load', function() {
-        callback.call(enchant.Core.instance);
-    });
+    sound.addEventListener('load', callback);
+    sound.addEventListener('error', onerror);
     var audio = new Audio();
     if (!enchant.ENV.SOUND_ENABLED_ON_MOBILE_SAFARI &&
         enchant.ENV.VENDOR_PREFIX === 'webkit' && enchant.ENV.TOUCH_ENABLED) {
@@ -4476,7 +5037,10 @@ enchant.DOMSound.load = function(src, type, callback) {
             audio.load();
             audio.autoplay = false;
             audio.onerror = function() {
-                throw new Error('Cannot load an asset: ' + audio.src);
+                var e = new enchant.Event(enchant.Event.ERROR);
+                e.message = 'Cannot load an asset: ' + audio.src;
+                enchant.Core.instance.dispatchEvent(e);
+                sound.dispatchEvent(e);
             };
             sound._element = audio;
         } else if (type === 'audio/mpeg') {
@@ -4612,28 +5176,39 @@ enchant.WebAudioSound = enchant.Class.create(enchant.EventTarget, {
     }
 });
 
-enchant.WebAudioSound.load = function(src, type, callback) {
-    var actx = enchant.WebAudioSound.audioContext;
-    var xhr = new XMLHttpRequest();
+enchant.WebAudioSound.load = function(src, type, callback, onerror) {
+    var canPlay = (new Audio()).canPlayType(type);
     var sound = new enchant.WebAudioSound();
-    var mimeType = 'audio/' + enchant.Core.findExt(src);
-    // TODO check Audio.canPlayType(mimeType)
-    xhr.responseType = 'arraybuffer';
-    xhr.open('GET', src, true);
-    xhr.onload = function() {
-        actx.decodeAudioData(
-            xhr.response,
-            function(buffer) {
-                sound.buffer = buffer;
-                callback.call(enchant.Core.instance);
-            },
-            function(error) {
-                // TODO change to enchant Error
-                window.console.log(error);
-            }
-        );
-    };
-    xhr.send(null);
+    onerror = onerror || function() {};
+    sound.addEventListener(enchant.Event.LOAD, callback);
+    sound.addEventListener(enchant.Event.ERROR, onerror);
+    var e = new enchant.Event(enchant.Event.ERROR);
+    e.message = 'Cannot load an asset: ' + src;
+    var actx, xhr;
+    if (canPlay === 'maybe' || canPlay === 'probably') {
+        actx = enchant.WebAudioSound.audioContext;
+        xhr = new XMLHttpRequest();
+        xhr.responseType = 'arraybuffer';
+        xhr.open('GET', src, true);
+        xhr.onload = function() {
+            actx.decodeAudioData(
+                xhr.response,
+                function(buffer) {
+                    sound.buffer = buffer;
+                    sound.dispatchEvent(new enchant.Event(enchant.Event.LOAD));
+                },
+                function(error) {
+                    enchant.Core.instance.dispatchEvent(e);
+                    sound.dispatchEvent(e);
+                }
+            );
+        };
+        xhr.send(null);
+    } else {
+        setTimeout(function() {
+            sound.dispatchEvent(e);
+        }, 50);
+    }
     return sound;
 };
 
@@ -5608,6 +6183,7 @@ enchant.Timeline = enchant.Class.create(enchant.EventTarget, {
         });
     }
 });
+
 /**
  * @scope enchant.Action.prototype
  * @type {*}
@@ -5675,6 +6251,7 @@ enchant.Action = enchant.Class.create(enchant.ActionEventTarget, {
 
     }
 });
+
 /**
  * @scope enchant.ParallelAction.prototype
  */
@@ -5809,6 +6386,7 @@ enchant.Tween = enchant.Class.create(enchant.Action, {
         });
     }
 });
+
 /**
  *
  */
