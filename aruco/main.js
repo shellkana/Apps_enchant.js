@@ -4,7 +4,7 @@ var video, imageData, detector;
 window.onload = function() {
     game = new Game(480, 320);
     game.preload({
-        "droid.dae" : "http://shell.6.ql.bz/aruco/droid.dae"
+        droid : "http://shell.6.ql.bz/aruco/headerdroid.php?url=droid.dae"
     });
     var posit = new POS.Posit(20, 480);
     video = document.getElementById("video");
@@ -62,8 +62,8 @@ window.onload = function() {
         var cube = new PlaneXY();
         cube.z = 0;
         cube.vz = -0.1;
-        game.assets["droid.dae"].rotatePitch(Math.PI / 2);
-        cube.addChild(game.assets["droid.dae"]);
+        game.assets["droid"].rotatePitch(Math.PI / 2);
+        cube.addChild(game.assets["droid"]);
         scene.addChild(cube);
         game.rootScene.on('enterframe', function() {
             if (video.readyState === video.HAVE_ENOUGH_DATA) {
