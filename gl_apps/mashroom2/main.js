@@ -24,14 +24,16 @@ window.onload = function() {
         scene.getCamera().z = -2;
         scene.getCamera().centerZ = 2;
         var skeleton = new Skeleton();
-        var bone0 = new Bone("bone0", vec3.create([0, 0, 1]), vec3.create([0, 0, 0]), quat4.identity());
+        var bone0 = new Bone("bone0", vec3.create([0, 0, 0]), vec3.create([0, 0, 0]), quat4.identity());
         skeleton.addChild(bone0);
         var bone1 = new Bone("bone1", vec3.create([0, 0, 1]), vec3.create([0, 0, 1]), quat4.identity());
         bone0.addChild(bone1);
-        var bone2 = new Bone("bone2", vec3.create([0, 0, 1]), vec3.create([0, 0, 1]), quat4.identity());
+        var bone2 = new Bone("bone2", vec3.create([0, 0, 2]), vec3.create([0, 0, 1]), quat4.identity());
         bone1.addChild(bone2);
-        var bone3 = new Bone("bone3", vec3.create([0, 0, 1]), vec3.create([0, 0, 1]), quat4.identity());
+        var bone3 = new Bone("bone3", vec3.create([0, 0, 3]), vec3.create([0, 0, 1]), quat4.identity());
         bone2.addChild(bone3);
+        var bone4 = new Bone("bone4", vec3.create([0, 0, 4]), vec3.create([0, 0, 1]), quat4.identity());
+        bone3.addChild(bone4);
         skeleton.solveFKs();
         console.log(bone0);
         var effector = new Sphere(0.1);
@@ -50,6 +52,8 @@ window.onload = function() {
             }
             if (game.input.right) {
                 this.lat--;
+                skeleton.addIKControl(effector, bone4, [bone1, bone2,bone3], Math.PI / 10000, 1);
+                skeleton.solveIKs();
             }
             var r = 4.3;
             this.z = r * Math.sin(this.lon / 180 * Math.PI);
@@ -59,8 +63,6 @@ window.onload = function() {
         });
         scene.addChild(effector);
         game.rootScene.on('touchend', function() {
-            skeleton.addIKControl(effector, bone3, [bone1, bone2], Math.PI / 10000, 2);
-            skeleton.solveIKs();
         });
         game.on('enterframe', function() {
             ebone0.x = bone0._globalpos[0];

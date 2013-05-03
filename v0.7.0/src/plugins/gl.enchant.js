@@ -3362,7 +3362,10 @@ if (typeof glMatrixArrayType === 'undefined') {
 
             if (rad > maxangle) {
                 rad = maxangle;
+            }else{
+                console.log(rad)
             }
+            console.log(rad);
             vec3.scale(_tmpaxis, Math.sin(rad / 2) / alen, _tmpquat);
             _tmpquat[3] = Math.cos(rad / 2);
             quat4.inverse(origin.parentNode._globalrot, _tmpinv);
