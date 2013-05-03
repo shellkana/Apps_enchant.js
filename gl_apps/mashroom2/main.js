@@ -22,6 +22,7 @@ window.onload = function() {
         scene.addChild(ebone3);
         scene.getCamera().y = 20;
         scene.getCamera().z = -2;
+        scene.getCamera().centerZ = 2;
         var skeleton = new Skeleton();
         var bone0 = new Bone("bone0", vec3.create([0, 0, 1]), vec3.create([0, 0, 0]), quat4.identity());
         skeleton.addChild(bone0);
@@ -50,7 +51,7 @@ window.onload = function() {
             if (game.input.right) {
                 this.lat--;
             }
-            var r = 2.3;
+            var r = 4.3;
             this.z = r * Math.sin(this.lon / 180 * Math.PI);
             this.x = r * Math.cos(this.lon / 180 * Math.PI) * Math.sin(this.lat / 180 * Math.PI);
             this.y = r * Math.cos(this.lon / 180 * Math.PI) * Math.cos(this.lat / 180 * Math.PI);
@@ -58,7 +59,7 @@ window.onload = function() {
         });
         scene.addChild(effector);
         game.rootScene.on('touchend', function() {
-            skeleton.addIKControl(effector, bone3, [ bone1, bone2], Math.PI / 5, 1);
+            skeleton.addIKControl(effector, bone3, [bone1, bone2], Math.PI / 10000, 2);
             skeleton.solveIKs();
         });
         game.on('enterframe', function() {
