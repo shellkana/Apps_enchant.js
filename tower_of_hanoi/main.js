@@ -13,7 +13,6 @@ var Hanoi = Class.create(Group, {
         this.c
         this.stack = [];
         this.stack_index = 0;
-        this.coreheight = Core.instance.height;
         for (var i = 0; i < max; i++) {
             this.rings[i] = new Ring(i, max);
             this.addChild(this.rings[i]);
@@ -62,8 +61,9 @@ var Hanoi = Class.create(Group, {
     },
     move : function(num, from, to, frame) {
         this.tl.delay(frame).then(function() {
-            var h = this.coreheight;
-            this.rings[num - 1].tl.rotateBy(60, frame / 3).and().moveTo(from * h / 3, 0, frame / 3).moveTo(to * h / 3, 0, frame / 3).rotateBy(-60, frame / 3).and().moveTo(to * h / 3, h * (1 - (1 + this.heights[to]) / 10), frame / 3);
+            var h = Core.instance.height;
+            var w = Core.instance.width;
+            this.rings[num - 1].tl.rotateBy(60, frame / 3).and().moveTo(from * w / 3, 0, frame / 3).moveTo(to * w / 3, 0, frame / 3).rotateBy(-60, frame / 3).and().moveTo(to * w / 3, h * (1 - (1 + this.heights[to]) / 10), frame / 3);
             this.heights[from]--;
             this.heights[to]++;
         });
