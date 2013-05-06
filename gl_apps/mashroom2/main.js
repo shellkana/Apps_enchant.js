@@ -40,29 +40,13 @@ window.onload = function() {
         effector.lat = 0;
         effector.lon = 90;
         effector._globalpos = vec3.create();
-        effector.on("enterframe", function() {
-            if (game.input.up) {
-                this.lon++;
-            }
-            if (game.input.down) {
-                this.lon--;
-            }
-            if (game.input.left) {
-                this.lat++;
-            }
-            if (game.input.right) {
-                this.lat--;
-                skeleton.addIKControl(effector, bone4, [bone1, bone2,bone3], Math.PI / 10000, 1);
-                skeleton.solveIKs();
-            }
-            var r = 4.3;
-            this.z = r * Math.sin(this.lon / 180 * Math.PI);
-            this.x = r * Math.cos(this.lon / 180 * Math.PI) * Math.sin(this.lat / 180 * Math.PI);
-            this.y = r * Math.cos(this.lon / 180 * Math.PI) * Math.cos(this.lat / 180 * Math.PI);
-            this._globalpos = this._global
-        });
         scene.addChild(effector);
-        game.rootScene.on('touchend', function() {
+        game.rootScene.on('touchmove', function(e) {
+            effector.x = (160 - e.x) / 45;
+            effector.z = (260 - e.y) / 45;
+            effector._globalpos = effector._global;
+            skeleton.addIKControl(effector, bone4, [bone1, bone2, bone3], Math.PI / 10000, 1);
+            skeleton.solveIKs();
         });
         game.on('enterframe', function() {
             ebone0.x = bone0._globalpos[0];
