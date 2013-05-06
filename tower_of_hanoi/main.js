@@ -62,7 +62,8 @@ var Hanoi = Class.create(Group, {
     },
     move : function(num, from, to, frame) {
         this.tl.delay(frame).then(function() {
-            this.rings[num - 1].tl.rotateBy(60, frame / 3).and().moveTo(from * this.coreheight / 3, 0, frame / 3).moveTo(to * this.coreheight / 3, 0, frame / 3).rotateBy(-60, frame / 3).and().moveTo(to * this.coreheight / 3, this.coreheight * (1 - (1 + this.heights[to]) / 10), frame / 3);
+            var h = this.coreheight;
+            this.rings[num - 1].tl.rotateBy(60, frame / 3).and().moveTo(from * h / 3, 0, frame / 3).moveTo(to * h / 3, 0, frame / 3).rotateBy(-60, frame / 3).and().moveTo(to * h / 3, h * (1 - (1 + this.heights[to]) / 10), frame / 3);
             this.heights[from]--;
             this.heights[to]++;
         });
