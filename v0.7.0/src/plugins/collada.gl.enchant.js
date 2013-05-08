@@ -68,12 +68,14 @@ if (enchant.gl !== undefined) {
                         }
                         for (var k in visualScene.nodes) {
                             if (visualScene.nodes[k].controllerUrl) {
+                                console.log(visualScene.nodes[k]);
                                 var skeletonContainer = new Node(visualScene.nodes[k].xml);
+                                console.log(skeletonContainer);
                                 skeletonContainer.nodes = [];
                                 for (var key in visualScene.nodes[k].skeletons) {
                                     skeletonContainer.nodes[visualScene.nodes[k].skeletons[key].id] = (visualScene.nodes[k].skeletons[key]);
                                 }
-                                var bone = new enchant.gl.collada.ColladaBone(skeletonContainer, [0, 0, 0]);
+                                var bone = new enchant.gl.collada.ColladaBone(/*skeletonContainer*/visualScene.nodes[k], [0, 0, 0]);
                                 var skeleton = new enchant.gl.collada.ColladaSkeleton();
                                 skeleton.addChild(bone);
                                 skeleton.solveFKs();

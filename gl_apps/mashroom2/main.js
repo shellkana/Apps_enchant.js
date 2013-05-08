@@ -23,17 +23,21 @@ window.onload = function() {
         scene.getCamera().y = 20;
         scene.getCamera().z = -2;
         scene.getCamera().centerZ = 2;
+        scene.getDirectionalLight().directionY = 1;
+        console.log(scene.getDirectionalLight());
         var skeleton = new Skeleton();
-        var bone0 = new Bone("bone0", vec3.create([0, 0, 0]), vec3.create([0, 0, 0]), quat4.identity());
-        skeleton.addChild(bone0);
-        var bone1 = new Bone("bone1", vec3.create([0, 0, 1]), vec3.create([0, 0, 1]), quat4.identity());
-        bone0.addChild(bone1);
         var mat = mat4.create();
+        var tmpz;
+        var tmpy;
+        var tmpx;
+        var x;
+        var y;
+        var z;
         var constraint = function(q) {
             mat = quat4.toMat4(q);
-            var y = Math.asin(-mat[8]);
-            var x = Math.atan2(mat[9], mat[10]);
-            var z = Math.atan2(mat[4], mat[0]);
+            y = Math.asin(-mat[8]);
+            x = Math.atan2(mat[9], mat[10]);
+            z = Math.atan2(mat[4], mat[0]);
             if (Math.abs(y / Math.PI * 180) > 45) {
                 y = (y > 0) ? Math.PI / 4 : -Math.PI / 4;
             }
@@ -43,14 +47,17 @@ window.onload = function() {
             if (Math.abs(x / Math.PI * 180) > 45) {
                 x = (x > 0) ? Math.PI / 4 : -Math.PI / 4;
             }
-            var tmpz = new Quat(0, 0, 1, z);
-            var tmpy = new Quat(0, 1, 0, y);
-            var tmpx = new Quat(1, 0, 0, x);
-            mat = mat4.create()
-            mat4.multiply(tmpz.toMat4([]), tmpy.toMat4([]), mat);
-            mat4.multiply(mat, tmpx.toMat4([]));
-            quat4.set(mat3.toQuat4(mat4.toMat3(mat), mat3.create(), quat4.create()), q);
+            tmpz = quat4.create([0, 0, Math.sin(z / 2), Math.cos(z / 2)]);
+            tmpy = quat4.create([0, Math.sin(y / 2), 0, Math.cos(y / 2)]);
+            tmpx = quat4.create([Math.sin(x / 2), 0, 0, Math.cos(x / 2)]);
+            mat4.multiply(quat4.toMat4(tmpz), quat4.toMat4(tmpy), mat);
+            mat4.multiply(mat, quat4.toMat4(tmpx));
+            return quat4.set(mat3.toQuat4(mat4.toMat3(mat)), q);
         };
+        var bone0 = new Bone("bone0", vec3.create([0, 0, 0]), vec3.create([0, 0, 0]), quat4.identity());
+        skeleton.addChild(bone0);
+        var bone1 = new Bone("bone1", vec3.create([0, 0, 1]), vec3.create([0, 0, 1]), quat4.identity());
+        bone0.addChild(bone1);
         var bone2 = new Bone("bone2", vec3.create([0, 0, 2]), vec3.create([0, 0, 1]), quat4.identity());
         bone1.addChild(bone2);
         var bone3 = new Bone("bone3", vec3.create([0, 0, 3]), vec3.create([0, 0, 1]), quat4.identity());
@@ -61,7 +68,6 @@ window.onload = function() {
         bone2.constraint = constraint;
         bone3.constraint = constraint;
         skeleton.solveFKs();
-        console.log(bone0);
         var effector = new Sphere(0.1);
         effector.lat = 0;
         effector.lon = 90;
@@ -98,9 +104,16 @@ window.onload = function() {
         game.on('enterframe', function() {
             if (game.input.up) {
                 effector.y -= 0.1;
+                effector._globalpos = effector._global;
+                skeleton.addIKControl(effector, bone4, [bone1, bone2, bone3], Math.PI / 10000, 1);
+                skeleton.solveIKs();
             }
             if (game.input.down) {
                 effector.y += 0.1;
+                effector._globalpos = effector._global;
+
+                skeleton.addIKControl(effector, bone4, [bone1, bone2, bone3], Math.PI / 10000, 1);
+                skeleton.solveIKs();
             }
             ebone0.x = bone0._globalpos[0];
             ebone0.y = bone0._globalpos[1];
