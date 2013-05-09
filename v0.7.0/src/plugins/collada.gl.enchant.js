@@ -70,9 +70,7 @@ if (enchant.gl !== undefined) {
                             if (visualScene.nodes[k].controllerUrl) {
                                 var skeletonContainer = new Node(visualScene.nodes[k].xml);
                                 skeletonContainer.nodes = [];
-                                console.log(visualScene.nodes[k].skeletons);
                                 for (var key in visualScene.nodes[k].skeletons) {
-                                    console.log(key);
                                     skeletonContainer.nodes[visualScene.nodes[k].skeletons[key].id] = (visualScene.nodes[k].skeletons[key]);
                                 }
                                 var bone = new enchant.gl.collada.ColladaBone(skeletonContainer/*visualScene.nodes[k]*/, [0, 0, 0]);
@@ -82,6 +80,7 @@ if (enchant.gl !== undefined) {
                                 rootColladaSkeletonSprite3D.skeleton = skeleton;
                                 var skin = lib['controllers'][visualScene.nodes[k].controllerUrl].skin.getProcessedSkinData();
                                 skeleton.calculateTableForIds(skin.ids);
+                                rootColladaSkeletonSprite3D.matrix = mat4.transpose(skin.bind_shape_matrix);
                                 rootColladaSkeletonSprite3D.addColladaSkeletonSprite3DFromNode(skeletonContainer, skin, skeleton, maxbonenum);
                             } else {
                                 rootColladaSprite3D.addColladaSprite3DFromNode(visualScene.nodes[k]);
@@ -841,9 +840,12 @@ if (enchant.gl !== undefined) {
                         this.vertex_weights[child.nodeName] = this.parseFloatArray(child);
                     }
                 }
+                var bind_shape_matrix = this._datas['bind_shape_matrix'][0];
+                this.bind_shape_matrix = this.parseFloatArray(bind_shape_matrix);
             },
             getProcessedSkinData: function() {
                 var resultSkin = {};
+                resultSkin.bind_shape_matrix = this.bind_shape_matrix;
                 resultSkin.joints = {};
                 var ids = {};
                 for (var i = 0, l = this.vertex_weights.JOINT.length; i < l; i++) {
