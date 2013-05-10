@@ -6984,7 +6984,8 @@
         <bind_shape_matrix>1.000000 -0.000000 0.000000 0.000000 0.000000 1.000000 -0.000000 7.500000 0.000000 0.000000 1.000000 0.000000 0.000000 0.000000 0.000000 1.000000
 </bind_shape_matrix>
         <source id="pCylinder1Controller-Joints">
-          <Name_array id="pCylinder1Controller-Joints-array" count="6">joint1 joint2 joint3 joint4 joint5 joint6</Name_array>
+          <Name_array id="pCylinder1Controller-Joints-array" count="6">
+ joint1 joint2 joint3 joint4 joint5 joint6</Name_array>
           <technique_common>
             <accessor source="#pCylinder1Controller-Joints-array" count="6">
               <param type="name"/>

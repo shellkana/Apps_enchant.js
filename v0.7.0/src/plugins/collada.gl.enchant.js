@@ -80,7 +80,6 @@ if (enchant.gl !== undefined) {
                                 rootColladaSkeletonSprite3D.skeleton = skeleton;
                                 var skin = lib['controllers'][visualScene.nodes[k].controllerUrl].skin.getProcessedSkinData();
                                 skeleton.calculateTableForIds(skin.ids);
-                                rootColladaSkeletonSprite3D.matrix = mat4.transpose(skin.bind_shape_matrix);
                                 rootColladaSkeletonSprite3D.addColladaSkeletonSprite3DFromNode(skeletonContainer, skin, skeleton, maxbonenum);
                             } else {
                                 rootColladaSprite3D.addColladaSprite3DFromNode(visualScene.nodes[k]);
@@ -813,7 +812,7 @@ if (enchant.gl !== undefined) {
                     for (var j = 0, m = source.childNodes.length; j < m; j++) {
                         child = source.childNodes[j];
                         if (child.nodeName === 'Name_array') {
-                            this.sources[source.getAttribute('id')] = child.textContent.split(' ');
+                            this.sources[source.getAttribute('id')] = child.textContent.replace(/^\s+|\s+$/g, "").split(/[\s,]+/);
                         }
                         if (child.nodeName === 'float_array') {
                             this.sources[source.getAttribute('id')] = this.parseFloatArray(child);
@@ -843,7 +842,7 @@ if (enchant.gl !== undefined) {
                 this.bind_shape_matrix = mat4.identity();
                 if (this._datas['bind_shape_matrix'].length > 0) {
                     var bind_shape_matrix = this._datas['bind_shape_matrix'][0];
-                    this.bind_shape_matrix = this.parseFloatArray(bind_shape_matrix);
+                    this.bind_shape_matrix = mat4.transpose(this.parseFloatArray(bind_shape_matrix));
                 }
             },
             getProcessedSkinData: function() {
@@ -1532,11 +1531,12 @@ if (enchant.gl !== undefined) {
                     if (triangles.inputs['POSITIONoffset'] >= 0) {
                         length++;
                         index = triangles.primitives[i + triangles.inputs['POSITIONoffset']];
-                        vec = [
+                        vec = vec3.create([
                             triangles.inputs['POSITION'][index * 3],
                             triangles.inputs['POSITION'][index * 3 + 1],
                             triangles.inputs['POSITION'][index * 3 + 2]
-                        ];
+                        ]);
+                        mat4.multiplyVec3(skin.bind_shape_matrix, vec);
                         var count = -1;
                         keys.push(skin.vertex_weights[index]);
                         for (var key in skin.vertex_weights[index]) {
