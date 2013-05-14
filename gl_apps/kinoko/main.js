@@ -10,7 +10,7 @@ var CubeAndCylinder = Class.create(Cube, {
     }
 });
 window.onload = function() {
-    game = new Game(320, 320);
+    game = new Game(1000, 1000);
     game.preload({
         enchant : '../../v0.7.0/images/enchant-sphere.png',
         kinoko : 'kinoko.dae'
@@ -90,8 +90,8 @@ window.onload = function() {
         var bone6 = bone5.childNodes[0];
         bone6.constraint = constraint;
         game.rootScene.on('touchmove', function(e) {
-            effector.x = -(160 - e.x) / 15;
-            effector.y = (260 - e.y) / 15;
+            effector.x = -(160 * game.width / 320 - e.x) / 15 / game.width * 320;
+            effector.y = (260 * game.width / 320 - e.y) / 15 / game.width * 320;
             effector._globalpos = effector._global;
             sprite.skeleton.addIKControl(effector, bone6, [bone2, bone3, bone4, bone5], Math.PI / 10000, 1);
             sprite.skeleton.solveIKs();
@@ -137,29 +137,29 @@ window.onload = function() {
                 sprite.childNodes[0].mesh.udBoneInfo = sprite.childNodes[0].calculateSkeletonTable(sprite.childNodes[0].divisioninfo.dividedIndices, sprite.skeleton.table, 6);
             }
             /*ebone0.x = bone0._globalpos[0];
-            ebone0.y = bone0._globalpos[1];
-            ebone0.z = bone0._globalpos[2];
-            ebone0.rotation = quat4.toMat4(bone0._globalrot);
-            ebone1.x = bone1._globalpos[0];
-            ebone1.y = bone1._globalpos[1];
-            ebone1.z = bone1._globalpos[2];
-            ebone1.rotation = quat4.toMat4(bone1._globalrot);
-            ebone2.x = bone2._globalpos[0];
-            ebone2.y = bone2._globalpos[1];
-            ebone2.z = bone2._globalpos[2];
-            ebone2.rotation = quat4.toMat4(bone2._globalrot);
-            ebone3.x = bone3._globalpos[0];
-            ebone3.y = bone3._globalpos[1];
-            ebone3.z = bone3._globalpos[2];
-            ebone3.rotation = quat4.toMat4(bone3._globalrot);
-            ebone4.x = bone4._globalpos[0];
-            ebone4.y = bone4._globalpos[1];
-            ebone4.z = bone4._globalpos[2];
-            ebone4.rotation = quat4.toMat4(bone4._globalrot);
-            ebone5.x = bone5._globalpos[0];
-            ebone5.y = bone5._globalpos[1];
-            ebone5.z = bone5._globalpos[2];
-            ebone5.rotation = quat4.toMat4(bone5._globalrot);*/
+             ebone0.y = bone0._globalpos[1];
+             ebone0.z = bone0._globalpos[2];
+             ebone0.rotation = quat4.toMat4(bone0._globalrot);
+             ebone1.x = bone1._globalpos[0];
+             ebone1.y = bone1._globalpos[1];
+             ebone1.z = bone1._globalpos[2];
+             ebone1.rotation = quat4.toMat4(bone1._globalrot);
+             ebone2.x = bone2._globalpos[0];
+             ebone2.y = bone2._globalpos[1];
+             ebone2.z = bone2._globalpos[2];
+             ebone2.rotation = quat4.toMat4(bone2._globalrot);
+             ebone3.x = bone3._globalpos[0];
+             ebone3.y = bone3._globalpos[1];
+             ebone3.z = bone3._globalpos[2];
+             ebone3.rotation = quat4.toMat4(bone3._globalrot);
+             ebone4.x = bone4._globalpos[0];
+             ebone4.y = bone4._globalpos[1];
+             ebone4.z = bone4._globalpos[2];
+             ebone4.rotation = quat4.toMat4(bone4._globalrot);
+             ebone5.x = bone5._globalpos[0];
+             ebone5.y = bone5._globalpos[1];
+             ebone5.z = bone5._globalpos[2];
+             ebone5.rotation = quat4.toMat4(bone5._globalrot);*/
             ebone6.x = bone6._globalpos[0];
             ebone6.y = bone6._globalpos[1] - 15;
             ebone6.z = bone6._globalpos[2];
