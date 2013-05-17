@@ -1,4 +1,4 @@
-var PARTICLE_VERTEX_SHADER_SOURCE = '\n\
+/*var PARTICLE_VERTEX_SHADER_SOURCE = '\n\
  uniform mat4 modelViewMatrix;\n\
  uniform mat4 projectionMatrix;\n\
  uniform float size,time;\n\
@@ -28,7 +28,7 @@ var PARTICLE_VERTEX_SHADER_SOURCE = '\n\
  }\n\
  gl_FragColor=vec4(color*(1.-r2)*(1.-r2),1);\n\
  }\n\
- ';
+ ';*/
 enchant.gl.Core.prototype._original_start = enchant.gl.Core.prototype.start;
 enchant.gl.Core.prototype.start = function() {
     enchant.gl.PARTICLE_SHADER_PROGRAM = new enchant.gl.Shader(PARTICLE_VERTEX_SHADER_SOURCE, PARTICLE_FRAGMENT_SHADER_SOURCE);
@@ -40,29 +40,33 @@ var game;
 var Particle = Class.create(Sprite3D, {
     initialize : function(numParticle, size) {
         Sprite3D.call(this);
+        this.mesh = new Mesh();
         this.program = enchant.gl.PARTICLE_SHADER_PROGRAM;
         var deltaBuffer = new enchant.gl.Buffer(enchant.gl.Buffer.TEXCOORDS);
         var random0Buffer = new enchant.gl.Buffer(enchant.gl.Buffer.VERTICES);
         var random1Buffer = new enchant.gl.Buffer(enchant.gl.Buffer.VERTICES);
         var random2Buffer = new enchant.gl.Buffer(enchant.gl.Buffer.VERTICES);
         var random3Buffer = new enchant.gl.Buffer(enchant.gl.Buffer.VERTICES);
+        var indicesBuffer = new enchant.gl.Buffer(enchant.gl.Buffer.INDICES);
         this._addAttribute(deltaBuffer, 'delta');
         this._addAttribute(random0Buffer, 'random0');
         this._addAttribute(random1Buffer, 'random1');
         this._addAttribute(random2Buffer, 'random2');
         this._addAttribute(random3Buffer, 'random3');
+        this._addAttribute(indicesBuffer, 'indices');
         var sqrt3 = Math.sqrt(3);
         var delta = [];
-        this.indices = [];
+        var indices = [];
         for (var i = 0; i < numParticle; i++) {
             delta.push(-1.7320508, -1);
             delta.push(1.7320508, -1);
             delta.push(0, 2);
-            this.indices.push(i * 3);
-            this.indices.push(i * 3 + 1);
-            this.indices.push(i * 3 + 2);
+            indices.push(i * 3);
+            indices.push(i * 3 + 1);
+            indices.push(i * 3 + 2);
         }
-        this._delta = new Float32Array(delta);
+        this.indices = indices;
+        this.delta = new Float32Array(delta);
         var rndArr = [];
         for (var j = 0; j < numParticle; j++) {
             var s = 2 * Math.random() - 1, t = 2 * Math.PI * Math.random(), r = Math.sqrt(1 - s * s);
@@ -72,10 +76,10 @@ var Particle = Class.create(Sprite3D, {
             rndArr.push(x, y, z);
             rndArr.push(x, y, z);
         }
-        this._random0 = new Float32Array(rndArr);
-        this._random1 = new Float32Array(rndArr);
-        this._random2 = new Float32Array(rndArr);
-        this._random3 = new Float32Array(rndArr);
+        this.random0 = new Float32Array(rndArr);
+        this.random1 = new Float32Array(rndArr);
+        this.random2 = new Float32Array(rndArr);
+        this.random3 = new Float32Array(rndArr);
         this.size = size;
         this.time = 0;
         this.sampleFrag = false;
@@ -105,6 +109,7 @@ var Particle = Class.create(Sprite3D, {
             random2 : this._random2,
             random3 : this._random3
         };
+
         var uniforms = {
             projectionMatrix : this.projectionMatrix,
             modelViewMatrix : this.modelViewMatrix,
@@ -112,7 +117,8 @@ var Particle = Class.create(Sprite3D, {
             size : this.size,
             time : this.time
         };
-        enchant.Core.instance.gl.renderElements(this.indices, 0, length, attributes, uniforms);
+        var length = this.indices.length;
+        enchant.Core.instance.GL.renderElements(this._indices, 0, length, attributes, uniforms);
     }
 });
 window.onload = function() {
