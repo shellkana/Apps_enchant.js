@@ -174,6 +174,8 @@ if (typeof glMatrixArrayType === 'undefined') {
             }
             buffer.bind();
             gl.drawElements(gl.TRIANGLES, length, gl.UNSIGNED_SHORT, offset);
+//            console.log(length);
+            //gl.drawArrays(gl.TRIANGLES, 0, length);
             buffer.unbind();
         }
     });
