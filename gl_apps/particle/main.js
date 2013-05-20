@@ -2,10 +2,10 @@ var PARTICLE_VERTEX_SHADER_SOURCE = '\n\
  attribute vec3 aVertexPosition;\n\
  \n\
  uniform mat4 uMVMatrix;\n\
- uniform mat4 uPMatrix;\n\
+ uniform mat4 uProjMat;\n\
  \n\
  void main(void) {\n\
- gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);\n\
+ gl_Position = uProjMat * uMVMatrix * vec4(aVertexPosition, 1.0);\n\
  }\n\
  ';
  var PARTICLE_FRAGMENT_SHADER_SOURCE = '\n\
@@ -84,23 +84,25 @@ var Particle = enchant.Class.create(enchant.gl.Sprite3D, {
         enchant.gl.Sprite3D.call(this);
         this.program = enchant.gl.PARTICLE_SHADER_PROGRAM;
         this.mesh = new PMesh();
-        this.mesh.delta = [-1.7320508/10, -1/10, 0.0, 1.7320508/10, -1/10, 0.0, 0.0, 2.0/10, 0.0];
+        this.mesh.delta = [-1.7320508, -1, 0.0, 1.7320508, -1, 0.0, 0.0, 2.0, 0.0];
         //this.mesh.normals = [0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0];
         //this.mesh.colors = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
         //this.mesh.texCoords = [1.0, 1.0, 0.0, 1.0, 0.0, 0.0];
         this.mesh.indices = [0, 1, 2];
-        this.mvmatrix = mat4.identity();
+        this.uMVMatrix = mat4.identity();
         this.pmatrix = mat4.identity();
     },
     _render : function() {
         var core = enchant.Core.instance;
-
+        var scene = core.currentScene3D;
+        mat4.multiply(scene._camera.mat, this.tmpMat, this.uMVMatrix);
         core.GL.currentProgram.setAttributes({
             aVertexPosition : this.mesh._delta
         });
+        if(core.frame<10)        console.log(scene._camera);
         core.GL.currentProgram.setUniforms({
-            uMVMatrix : this.mvmatrix,
-            uPMatrix : this.pmatrix
+            uMVMatrix : this.uMVMatrix,
+            uProjMat : scene._camera._projMat
         });
         var length = this.mesh.indices.length;
         enchant.Core.instance.GL.renderElements(this.mesh._indices, 0, length);
