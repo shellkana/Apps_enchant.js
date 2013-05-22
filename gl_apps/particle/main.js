@@ -121,18 +121,8 @@ window.onload = function() {
         enchant : '../../v0.7.0/images/enchant-sphere.png'
     });
     game.onload = function() {
-        /**
-         * 3D用のシーンを定義する.
-         * Sprite3DはScene3Dに追加することで画面に表示される.
-         */
         var scene = new Scene3D();
         scene.getCamera().z = 100;
-        /**
-         * 球体型のオブジェクトをつくる.
-         * primitive.gl.enchant.js内のクラスを使用している.
-         * primitive.gl.enchant.js内定義されている基本図形はSprite3Dを継承している.
-         */
-        //var ball = new Sphere();
         var particle = new Particle(100, 10);
         scene.addChild(particle);
     };
