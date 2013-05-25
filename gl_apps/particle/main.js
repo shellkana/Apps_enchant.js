@@ -99,7 +99,8 @@ var Particle = enchant.Class.create(enchant.gl.Sprite3D, {
         core.GL.currentProgram.setAttributes({
             aVertexPosition : this.mesh._delta
         });
-        if(core.frame<10)        console.log(scene._camera);
+        if (core.frame < 10)
+            console.log(scene._camera);
         core.GL.currentProgram.setUniforms({
             uMVMatrix : this.uMVMatrix,
             uProjMat : scene._camera._projMat
@@ -122,6 +123,18 @@ window.onload = function() {
     });
     game.onload = function() {
         var scene = new Scene3D();
+        for (var i = 0; i < 800; i++) {
+            var b = new Billboard(0.1);
+            b.x = i % 20 * 0.1;
+            b.y = Math.floor(i / 20) * 0.1;
+            b.on('enterframe', function() {
+                this.x += 0.5 - Math.random();
+                this.y += 0.5 - Math.random();
+                this.z += 0.5 - Math.random();
+            });
+            scene.addChild(b);
+        }
+
         scene.getCamera().z = 100;
         var particle = new Particle(100, 10);
         scene.addChild(particle);
