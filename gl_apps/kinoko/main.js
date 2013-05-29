@@ -1,5 +1,6 @@
 enchant();
 var game;
+var ebone6;
 var CubeAndCylinder = Class.create(Cube, {
     initialize : function(scale) {
         Cube.call(this, scale);
@@ -9,8 +10,42 @@ var CubeAndCylinder = Class.create(Cube, {
         this.addChild(this.cyl);
     }
 });
+var Kona = Class.create(Sphere, {
+    initialize : function(scale) {
+        Sphere.call(this, scale);
+        this.sleep = Math.floor(Math.random() * 10) + 5;
+        this.life = Math.floor(Math.random() * 100) + 5;
+        this.mesh.setBaseColor(parseTempToColor(Math.random(), 1, 0));
+        var v = mat4.multiplyVec3(ebone6.rotation, [0, 1, 0]);
+        this.on('enterframe', function() {
+            if (this.age % 120 === this.sleep) {
+                var s = 2 * Math.random() - 1, t = 2 * Math.PI * Math.random(), r = Math.sqrt(1 - s * s);
+                var v = mat4.multiplyVec3(ebone6.rotation, [0.2 * r * Math.cos(t), Math.abs(s) * 3 + 1, 0.2 * r * Math.sin(t)]);
+                this.vx = v[0];
+                this.vy = v[1];
+                this.vz = v[2];
+                this.ay = 0.3;
+                this.x = ebone6.x;
+                this.y = ebone6.y + 15;
+                this.z = ebone6.z;
+                this.ay = 0.1;
+            }
+            if (this.age % 120 > this.sleep) {
+                this.x += this.vx;
+                this.vy -= this.ay;
+                this.y += this.vy;
+                this.z += this.vz;
+            }
+            if (this.age % 120 > this.sleep + this.life) {
+                this.x = 0;
+                this.y = 0;
+                this.z = 0;
+            }
+        });
+    }
+});
 window.onload = function() {
-    game = new Game(1000, 1000);
+    game = new Game(1500, 1000);
     game.preload({
         enchant : '../../v0.7.0/images/enchant-sphere.png',
         kinoko : 'kinoko.dae'
@@ -22,8 +57,9 @@ window.onload = function() {
          */
 
         var scene = new Scene3D();
-        scene.getCamera().z = 70;
-        scene.getCamera().centerY = 7.5;
+        scene.getCamera().z = 80;
+        scene.getCamera().y = 80;
+        scene.getCamera().centerY = 14.5;
         /*var ebone0 = new CubeAndCylinder(0.5 / 2);
         scene.addChild(ebone0);
         var ebone1 = new CubeAndCylinder(0.5 / 2);
@@ -38,7 +74,7 @@ window.onload = function() {
         scene.addChild(ebone5);*/
         //var ebone6 = new CubeAndCylinder(0.5 / 2);
         //scene.addChild(ebone6);
-        var ebone6 = game.assets["kinoko"].childNodes[0].childNodes[0].childNodes[0].childNodes[0].childNodes[0].childNodes[0].childNodes[0].childNodes[0];
+        ebone6 = game.assets["kinoko"].childNodes[0].childNodes[0].childNodes[0].childNodes[0].childNodes[0].childNodes[0].childNodes[0].childNodes[0];
         console.log(ebone6);
         var constraint = function(q) {
             mat = quat4.toMat4(q);
@@ -72,6 +108,7 @@ window.onload = function() {
         var c = new Cube();
         effector.addChild(c);
         effector.y = 15;
+        effector._globalpos = effector._global;
         scene.addChild(effector);
         scene.addChild(game.assets["kinoko"]);
         var sprite = game.assets["kinoko"].childNodes[1];
@@ -90,51 +127,18 @@ window.onload = function() {
         var bone6 = bone5.childNodes[0];
         bone6.constraint = constraint;
         game.rootScene.on('touchmove', function(e) {
-            effector.x = -(160 * game.width / 320 - e.x) / 15 / game.width * 320;
-            effector.y = (260 * game.width / 320 - e.y) / 15 / game.width * 320;
+            effector.x = -(160 * game.width / 320 - e.x) / 8 / game.width * 320;
+            effector.y = (260 * game.height / 320 - e.y) / 8 / game.height * 320;
             effector._globalpos = effector._global;
-            sprite.skeleton.addIKControl(effector, bone6, [bone2, bone3, bone4, bone5], Math.PI / 10000, 1);
-            sprite.skeleton.solveIKs();
-            sprite.skeleton.calculateTableForIds({
-                joint1 : 0,
-                joint2 : 1,
-                joint3 : 2,
-                joint4 : 3,
-                joint5 : 4,
-                joint6 : 5
-            });
-            sprite.childNodes[0].mesh.udBoneInfo = sprite.childNodes[0].calculateSkeletonTable(sprite.childNodes[0].divisioninfo.dividedIndices, sprite.skeleton.table, 6);
         });
         game.on('enterframe', function() {
             if (game.input.up) {
                 effector.z -= 1;
                 effector._globalpos = effector._global;
-                sprite.skeleton.addIKControl(effector, bone6, [bone2, bone3, bone4, bone5], Math.PI / 10000, 1);
-                sprite.skeleton.solveIKs();
-                sprite.skeleton.calculateTableForIds({
-                    joint1 : 0,
-                    joint2 : 1,
-                    joint3 : 2,
-                    joint4 : 3,
-                    joint5 : 4,
-                    joint6 : 5
-                });
-                sprite.childNodes[0].mesh.udBoneInfo = sprite.childNodes[0].calculateSkeletonTable(sprite.childNodes[0].divisioninfo.dividedIndices, sprite.skeleton.table, 6);
             }
             if (game.input.down) {
                 effector.z += 1;
                 effector._globalpos = effector._global;
-                sprite.skeleton.addIKControl(effector, bone6, [bone2, bone3, bone4, bone5], Math.PI / 10000, 1);
-                sprite.skeleton.solveIKs();
-                sprite.skeleton.calculateTableForIds({
-                    joint1 : 0,
-                    joint2 : 1,
-                    joint3 : 2,
-                    joint4 : 3,
-                    joint5 : 4,
-                    joint6 : 5
-                });
-                sprite.childNodes[0].mesh.udBoneInfo = sprite.childNodes[0].calculateSkeletonTable(sprite.childNodes[0].divisioninfo.dividedIndices, sprite.skeleton.table, 6);
             }
             /*ebone0.x = bone0._globalpos[0];
              ebone0.y = bone0._globalpos[1];
@@ -160,12 +164,47 @@ window.onload = function() {
              ebone5.y = bone5._globalpos[1];
              ebone5.z = bone5._globalpos[2];
              ebone5.rotation = quat4.toMat4(bone5._globalrot);*/
+            sprite.skeleton.addIKControl(effector, bone6, [bone2, bone3, bone4, bone5], Math.PI / 10000, 1);
+            sprite.skeleton.solveIKs();
+            sprite.skeleton.calculateTableForIds({
+                joint1 : 0,
+                joint2 : 1,
+                joint3 : 2,
+                joint4 : 3,
+                joint5 : 4,
+                joint6 : 5
+            });
+            sprite.childNodes[0].mesh.udBoneInfo = sprite.childNodes[0].calculateSkeletonTable(sprite.childNodes[0].divisioninfo.dividedIndices, sprite.skeleton.table, 6);
             ebone6.x = bone6._globalpos[0];
             ebone6.y = bone6._globalpos[1] - 15;
             ebone6.z = bone6._globalpos[2];
             ebone6.rotation = quat4.toMat4(bone6._globalrot);
-        });
 
+        });
+        for (var i = 0; i < 200; i++) {
+            var b = new Kona(0.1);
+            scene.addChild(b);
+        }
     };
     game.start();
+};
+var parseTempToColor = function(temp, maxTemp, minTemp) {
+    qtTemp = (maxTemp - minTemp) / 5;
+    if (temp < minTemp) {
+        temp = minTemp;
+    } else if (temp > maxTemp) {
+        temp = maxTemp;
+    }
+    if (temp < (minTemp + qtTemp)) {
+        color = [1 - (temp - minTemp) / qtTemp, 0, 1, 0.5];
+    } else if (temp < (minTemp + qtTemp * 2)) {
+        color = [0, (temp - minTemp - qtTemp) / qtTemp, 1, 0.5];
+    } else if (temp < (minTemp + 3 * qtTemp)) {
+        color = [0, 1, (3 - (temp - minTemp) / qtTemp), 0.5];
+    } else if (temp < (minTemp + 4 * qtTemp)) {
+        color = [(temp - minTemp) / qtTemp - 3, 1, 0, 0.5];
+    } else {
+        color = [1, ((maxTemp - temp) / qtTemp), 0, 0.5];
+    }
+    return color;
 };
