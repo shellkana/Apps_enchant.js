@@ -13,12 +13,12 @@ var CubeAndCylinder = Class.create(Cube, {
 var Kona = Class.create(Sphere, {
     initialize : function(scale) {
         Sphere.call(this, scale);
-        this.sleep = Math.floor(Math.random() * 10) + 5;
-        this.life = Math.floor(Math.random() * 100) + 5;
+        this.sleep = Math.floor(Math.random() * 10);
+        this.life = Math.floor(Math.random() * 50) + 10;
         this.mesh.setBaseColor(parseTempToColor(Math.random(), 1, 0));
         var v = mat4.multiplyVec3(ebone6.rotation, [0, 1, 0]);
         this.on('enterframe', function() {
-            if (this.age % 120 === this.sleep) {
+            if (this.age % 70 === this.sleep) {
                 var s = 2 * Math.random() - 1, t = 2 * Math.PI * Math.random(), r = Math.sqrt(1 - s * s);
                 var v = mat4.multiplyVec3(ebone6.rotation, [0.2 * r * Math.cos(t), Math.abs(s) * 3 + 1, 0.2 * r * Math.sin(t)]);
                 this.vx = v[0];
@@ -30,13 +30,13 @@ var Kona = Class.create(Sphere, {
                 this.z = ebone6.z;
                 this.ay = 0.1;
             }
-            if (this.age % 120 > this.sleep) {
+            if (this.age % 70 > this.sleep) {
                 this.x += this.vx;
                 this.vy -= this.ay;
                 this.y += this.vy;
                 this.z += this.vz;
             }
-            if (this.age % 120 > this.sleep + this.life) {
+            if (this.age % 70 > this.sleep + this.life) {
                 this.x = 0;
                 this.y = 0;
                 this.z = 0;
@@ -164,22 +164,23 @@ window.onload = function() {
              ebone5.y = bone5._globalpos[1];
              ebone5.z = bone5._globalpos[2];
              ebone5.rotation = quat4.toMat4(bone5._globalrot);*/
-            sprite.skeleton.addIKControl(effector, bone6, [bone2, bone3, bone4, bone5], Math.PI / 10000, 1);
-            sprite.skeleton.solveIKs();
-            sprite.skeleton.calculateTableForIds({
-                joint1 : 0,
-                joint2 : 1,
-                joint3 : 2,
-                joint4 : 3,
-                joint5 : 4,
-                joint6 : 5
-            });
-            sprite.childNodes[0].mesh.udBoneInfo = sprite.childNodes[0].calculateSkeletonTable(sprite.childNodes[0].divisioninfo.dividedIndices, sprite.skeleton.table, 6);
-            ebone6.x = bone6._globalpos[0];
-            ebone6.y = bone6._globalpos[1] - 15;
-            ebone6.z = bone6._globalpos[2];
-            ebone6.rotation = quat4.toMat4(bone6._globalrot);
-
+            if (game.frame % 2 == 0) {
+                sprite.skeleton.addIKControl(effector, bone6, [bone2, bone3, bone4, bone5], Math.PI / 10000, 1);
+                sprite.skeleton.solveIKs();
+                sprite.skeleton.calculateTableForIds({
+                    joint1 : 0,
+                    joint2 : 1,
+                    joint3 : 2,
+                    joint4 : 3,
+                    joint5 : 4,
+                    joint6 : 5
+                });
+                sprite.childNodes[0].mesh.udBoneInfo = sprite.childNodes[0].calculateSkeletonTable(sprite.childNodes[0].divisioninfo.dividedIndices, sprite.skeleton.table, 6);
+                ebone6.x = bone6._globalpos[0];
+                ebone6.y = bone6._globalpos[1] - 15;
+                ebone6.z = bone6._globalpos[2];
+                ebone6.rotation = quat4.toMat4(bone6._globalrot);
+            }
         });
         for (var i = 0; i < 200; i++) {
             var b = new Kona(0.1);
