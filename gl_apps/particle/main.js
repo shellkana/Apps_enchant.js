@@ -1,3 +1,4 @@
+// @formatter:off
 var PARTICLE_VERTEX_SHADER_SOURCE = '\n\
  attribute vec3 aVertexPosition;\n\
  \n\
@@ -15,6 +16,7 @@ var PARTICLE_VERTEX_SHADER_SOURCE = '\n\
  gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);\n\
  }\n\
  ';
+ // @formatter:on
 var PMesh = enchant.Class.create({
     initialize : function() {
         this.__count = 0;
