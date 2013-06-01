@@ -117,9 +117,6 @@ enchant();
 var game;
 window.onload = function() {
     game = new Core(320, 320);
-    game.preload({
-        enchant : '../../v0.7.0/images/enchant-sphere.png'
-    });
     game.onload = function() {
         var scene = new Scene3D();
         scene.getCamera().z = 100;
