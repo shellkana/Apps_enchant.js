@@ -1,22 +1,22 @@
 // @formatter:off
 var PARTICLE_VERTEX_SHADER_SOURCE = '\n\
- attribute vec3 aVertexPosition;\n\
- \n\
- uniform mat4 uMVMatrix;\n\
- uniform mat4 uProjMat;\n\
- \n\
- void main(void) {\n\
- gl_Position = uProjMat * uMVMatrix * vec4(aVertexPosition, 1.0);\n\
- }\n\
- ';
- var PARTICLE_FRAGMENT_SHADER_SOURCE = '\n\
- precision mediump float;\n\
- \n\
- void main(void) {\n\
- gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);\n\
- }\n\
- ';
- // @formatter:on
+    attribute vec3 aVertexPosition;\n\
+    \n\
+    uniform mat4 uMVMatrix;\n\
+    uniform mat4 uProjMat;\n\
+    \n\
+    void main(void) {\n\
+        gl_Position = uProjMat * uMVMatrix * vec4(aVertexPosition, 1.0);\n\
+    }\n\
+';
+var PARTICLE_FRAGMENT_SHADER_SOURCE = '\n\
+    precision mediump float;\n\
+    \n\
+    void main(void) {\n\
+    gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);\n\
+    }\n\
+';
+// @formatter:on
 var PMesh = enchant.Class.create({
     initialize : function() {
         this.__count = 0;
@@ -87,9 +87,6 @@ var Particle = enchant.Class.create(enchant.gl.Sprite3D, {
         this.program = enchant.gl.PARTICLE_SHADER_PROGRAM;
         this.mesh = new PMesh();
         this.mesh.delta = [-1.7320508, -1, 0.0, 1.7320508, -1, 0.0, 0.0, 2.0, 0.0];
-        //this.mesh.normals = [0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0];
-        //this.mesh.colors = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
-        //this.mesh.texCoords = [1.0, 1.0, 0.0, 1.0, 0.0, 0.0];
         this.mesh.indices = [0, 1, 2];
         this.uMVMatrix = mat4.identity();
         this.pmatrix = mat4.identity();
@@ -125,18 +122,6 @@ window.onload = function() {
     });
     game.onload = function() {
         var scene = new Scene3D();
-        for (var i = 0; i < 800; i++) {
-            var b = new Billboard(0.1);
-            b.x = i % 20 * 0.1;
-            b.y = Math.floor(i / 20) * 0.1;
-            b.on('enterframe', function() {
-                this.x += 0.5 - Math.random();
-                this.y += 0.5 - Math.random();
-                this.z += 0.5 - Math.random();
-            });
-            scene.addChild(b);
-        }
-
         scene.getCamera().z = 100;
         var particle = new Particle(100, 10);
         scene.addChild(particle);
