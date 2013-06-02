@@ -86,10 +86,15 @@ var Particle = enchant.Class.create(enchant.gl.Sprite3D, {
         enchant.gl.Sprite3D.call(this);
         this.program = enchant.gl.PARTICLE_SHADER_PROGRAM;
         this.mesh = new PMesh();
-        this.mesh.delta = [-1.7320508, -1, 0.0, 1.7320508, -1, 0.0, 0.0, 2.0, 0.0];
+        // @formatter:off
+        this.mesh.delta = [
+            -1.7320508, -1, 0.0,
+            1.7320508, -1, 0.0,
+            0.0, 2.0, 0.0
+        ];
+        // @formatter:on
         this.mesh.indices = [0, 1, 2];
         this.uMVMatrix = mat4.identity();
-        this.pmatrix = mat4.identity();
     },
     _render : function() {
         var core = enchant.Core.instance;
@@ -98,8 +103,6 @@ var Particle = enchant.Class.create(enchant.gl.Sprite3D, {
         core.GL.currentProgram.setAttributes({
             aVertexPosition : this.mesh._delta
         });
-        if (core.frame < 10)
-            console.log(scene._camera);
         core.GL.currentProgram.setUniforms({
             uMVMatrix : this.uMVMatrix,
             uProjMat : scene._camera._projMat
